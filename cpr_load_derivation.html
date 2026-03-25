@@ -263,6 +263,94 @@
   .param-overview table th { font-family: monospace; font-size:.85rem; }
   .param-overview table td { font-size: .88rem; }
   .param-overview td:nth-child(2) { font-family: monospace; color: var(--primary); }
+
+  /* ── 车型对比 & 代码章节 ── */
+  .vehicle-tabs {
+    display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .vehicle-tab {
+    padding: 9px 24px; border-radius: 8px; cursor: pointer; font-size: .92rem;
+    font-weight: 700; border: 2px solid var(--border); transition: all .18s;
+    background: #f5f8ff;
+  }
+  .vehicle-tab.car.active, .vehicle-tab.car:hover {
+    background: #1a6eb5; color: white; border-color: #1a6eb5;
+  }
+  .vehicle-tab.truck.active, .vehicle-tab.truck:hover {
+    background: #b55a1a; color: white; border-color: #b55a1a;
+  }
+  .vehicle-panel { display: none; }
+  .vehicle-panel.active { display: block; }
+
+  .param-matrix {
+    overflow-x: auto; margin: 16px 0;
+  }
+  .param-matrix table { min-width: 640px; }
+  .param-matrix th { background: #1a6eb5; color: white; font-size: .85rem; }
+  .param-matrix.truck th { background: #b55a1a; }
+  .param-matrix td { font-size: .88rem; }
+  .param-matrix td:nth-child(2) { font-family: monospace; }
+  .param-matrix td:nth-child(3) { font-family: monospace; color: #1a6eb5; font-weight:700;}
+  .param-matrix.truck td:nth-child(3) { color: #b55a1a; }
+  .param-matrix td:nth-child(4) { font-size: .82rem; color: #556; }
+
+  .warn-box {
+    background: #fff5e0; border-left: 4px solid #f0a030;
+    border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 14px 0;
+  }
+  .warn-box strong { color: #a06010; }
+  .danger-box {
+    background: #fff0f0; border-left: 4px solid var(--red);
+    border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 14px 0;
+  }
+  .danger-box strong { color: var(--red); }
+
+  .code-block {
+    background: #0e1a2a; color: #c8daf0; font-family: "Courier New", monospace;
+    font-size: .83rem; line-height: 1.65; padding: 18px 22px;
+    border-radius: 8px; overflow-x: auto; margin: 12px 0;
+    white-space: pre;
+  }
+  .code-block .cm  { color: #6a9acc; }
+  .code-block .kw  { color: #e0a040; }
+  .code-block .fn  { color: #7adca0; }
+  .code-block .nu  { color: #f0c060; }
+  .code-block .st  { color: #f08060; }
+  .code-block .hi  { color: #ffffff; font-weight:700; }
+
+  .step-flow {
+    display: flex; flex-direction: column; gap: 0; margin: 16px 0;
+  }
+  .step-item {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 12px 16px; border-left: 3px solid #c0d8f8;
+    position: relative; background: #f8fbff;
+  }
+  .step-item + .step-item { margin-top: 2px; }
+  .step-item:first-child { border-radius: 8px 8px 0 0; }
+  .step-item:last-child  { border-radius: 0 0 8px 8px; }
+  .step-num {
+    min-width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .82rem; font-weight: 700; margin-top: 1px;
+  }
+  .step-item.truck .step-num { background: #b55a1a; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; margin-bottom: 4px; font-size: .92rem; }
+  .step-content p { margin: 0; font-size: .88rem; color: #445; }
+
+  .cmp-table th:nth-child(3) { background: #1a6eb5; }
+  .cmp-table th:nth-child(4) { background: #b55a1a; }
+  .cmp-table td:nth-child(3) { color: #1a6eb5; font-weight: 700; font-family: monospace; }
+  .cmp-table td:nth-child(4) { color: #b55a1a; font-weight: 700; font-family: monospace; }
+  .cmp-table td:nth-child(5) { font-size: .82rem; color: #667; }
+
+  .truck-calc {
+    background: #fff8f0; border: 1.5px solid #f0c080;
+    border-radius: 8px; padding: 16px 20px; margin-top: 14px;
+  }
+  .truck-calc h4 { color: #b55a1a; margin-bottom: 12px; font-size: .9rem; }
 </style>
 </head>
 <body>
@@ -1251,10 +1339,447 @@ load_calib.h 中使用的 3500 / 5000：<br>
 </div>
 
 <!-- ========================================================
-  7. 交互计算器 - CPR
+  8. 乘用车 vs 卡车参数对比 + 完整使用代码
 ========================================================= -->
 <div class="section">
-  <h2>⑧ 交互计算器 A：从检测结果计算 CPR</h2>
+  <h2>⑧ 乘用车 vs 卡车：参数差异与完整使用代码</h2>
+
+  <!-- ── 总对比表 ── -->
+  <p>以下是乘用车（205/60R16）和卡车（295/80R22.5）在各项参数上的完整对比：</p>
+  <div class="param-matrix" style="overflow-x:auto">
+    <table class="cmp-table">
+      <thead><tr>
+        <th>参数</th>
+        <th>含义</th>
+        <th>🚗 乘用车<br><small>205/60R16</small></th>
+        <th>🚛 卡车<br><small>295/80R22.5</small></th>
+        <th>差异原因</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>截面高 H</strong></td>
+          <td>W × AR/100</td>
+          <td>123 mm</td>
+          <td>236 mm</td>
+          <td>卡车轮胎截面更高</td>
+        </tr>
+        <tr>
+          <td><strong>动态半径 R</strong></td>
+          <td>(D/2×25.4 + H) × 0.97</td>
+          <td>316 mm</td>
+          <td>510 mm</td>
+          <td>轮辋更大 + 截面更高</td>
+        </tr>
+        <tr>
+          <td><strong>周长 2πR</strong></td>
+          <td>车轮一圈滚动距离</td>
+          <td>1986 mm</td>
+          <td>3204 mm</td>
+          <td>卡车轮子大 61%</td>
+        </tr>
+        <tr>
+          <td><strong>挠度 δ（满载）</strong></td>
+          <td>H × 20%（经验值）</td>
+          <td>25 mm</td>
+          <td>47 mm</td>
+          <td>载荷更大，形变更多</td>
+        </tr>
+        <tr>
+          <td><strong>接地弧长 L</strong></td>
+          <td>2√(2Rδ)</td>
+          <td>249 mm</td>
+          <td>436 mm</td>
+          <td>接地面积大 75%</td>
+        </tr>
+        <tr>
+          <td><strong>80km/h 接地时间</strong></td>
+          <td>L / v</td>
+          <td>11.2 ms</td>
+          <td>19.6 ms</td>
+          <td>接地弧更长</td>
+        </tr>
+        <tr>
+          <td><strong>20km/h 接地时间</strong></td>
+          <td>L / v（低速重载）</td>
+          <td>44.8 ms</td>
+          <td><span style="color:var(--red);font-weight:700">78.5 ms</span></td>
+          <td>⚠️ 卡车低速时极长</td>
+        </tr>
+        <tr style="background:#fff5e0">
+          <td><strong>f2r_max</strong></td>
+          <td>接地弧最大允许点数</td>
+          <td>175</td>
+          <td><span style="color:#b55a1a;font-weight:700">250</span></td>
+          <td>接地弧更长，点数更多</td>
+        </tr>
+        <tr style="background:#fff5e0">
+          <td><strong>Ts 初始值</strong></td>
+          <td>首次调用采样间隔</td>
+          <td>300 μs</td>
+          <td><span style="color:#b55a1a;font-weight:700">500 μs</span></td>
+          <td>接地弧长，点距可更大</td>
+        </tr>
+        <tr style="background:#fff5e0">
+          <td><strong>Ts 最小下限</strong></td>
+          <td>动态 Ts 的钳位下限</td>
+          <td>93 μs（硬件）</td>
+          <td><span style="color:#b55a1a;font-weight:700">400 μs</span></td>
+          <td>⚠️ 必须提高，防 f2r 溢出</td>
+        </tr>
+        <tr style="background:#fff5e0">
+          <td><strong>目标采样点数</strong></td>
+          <td>每个接地弧目标点数</td>
+          <td>30</td>
+          <td><span style="color:#b55a1a;font-weight:700">40</span></td>
+          <td>接地弧更长，可取更高精度</td>
+        </tr>
+        <tr style="background:#fff5e0">
+          <td><strong>ntimeout</strong></td>
+          <td>超时采样点数上限</td>
+          <td>3500</td>
+          <td><span style="color:#b55a1a;font-weight:700">6000</span></td>
+          <td>低速一圈时间更长</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── 卡车最重要陷阱 ── -->
+  <div class="danger-box">
+    <strong>⚠️ 卡车最容易踩的坑：f2r_max 与 Ts_min 必须联合设计</strong>
+    <div class="formula-box" style="margin-top:10px">
+f2r_max 是 <span style="color:var(--red);font-weight:700">uint8_t，最大只能填 255</span><br>
+<br>
+卡车低速（20 km/h）重载时：<br>
+&nbsp;&nbsp;t_patch_max = 78500 μs<br>
+&nbsp;&nbsp;如果 Ts_min = 93 μs（乘用车值）：<br>
+&nbsp;&nbsp;&nbsp;&nbsp;f2r_points = 78500 / 93 = <span style="color:var(--red);font-weight:700">844 点 → 远超 255！</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;→ 库把真实接地弧判定为无效，一直返回 TIMEOUT ❌<br>
+<br>
+<span style="color:var(--green);font-weight:700">正确做法：反过来算 Ts_min</span><br>
+&nbsp;&nbsp;Ts_min ≥ t_patch_max / (f2r_max / 1.2)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ≥ 78500 / (250 / 1.2)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ≥ 78500 / 208 = 377 μs → 取 <span style="color:var(--green);font-weight:700">400 μs</span>
+    </div>
+  </div>
+
+  <!-- ── Tab：乘用车 / 卡车代码 ── -->
+  <div class="vehicle-tabs" style="margin-top:24px">
+    <div class="vehicle-tab car active" onclick="showVehicle('car')">🚗 乘用车完整代码</div>
+    <div class="vehicle-tab truck" onclick="showVehicle('truck')">🚛 卡车完整代码</div>
+    <div class="vehicle-tab car" style="background:#f0f5ff;border-color:#c0d8f8;color:#445" onclick="showVehicle('flow')">📋 调用时序说明</div>
+  </div>
+
+  <!-- 乘用车代码 -->
+  <div class="vehicle-panel active" id="vpanel-car">
+    <p>以 205/60R16 为例，f2r_max=175，目标采样点=30：</p>
+    <div class="code-block"><span class="cm">/* ════════ 乘用车 Tms_DetectPatchesZ 完整使用示例 ════════
+ * 轮胎：205/60R16  R=316mm  L=249mm  2πR=1986mm
+ * ══════════════════════════════════════════════════ */</span>
+
+<span class="cm">/* ── 静态变量（必须是全局/静态，不能放栈上！） ── */</span>
+<span class="kw">static</span> uint16_t               s_data_buf[<span class="nu">180</span>];      <span class="cm">// 采样缓冲区 360字节</span>
+<span class="kw">static</span> uint8_t                s_last_index;           <span class="cm">// 环形缓冲写指针</span>
+<span class="kw">static</span> Tms_Detect_Result_Type s_result[<span class="nu">2</span>];           <span class="cm">// 检测结果</span>
+
+<span class="cm">/* ── 自适应参数（跨调用保存） ── */</span>
+<span class="kw">static</span> int32_t  s_a_ema       = <span class="nu">0</span>;     <span class="cm">// a_patch EMA（信号幅度）</span>
+<span class="kw">static</span> int32_t  s_threshold   = <span class="nu">20</span>;    <span class="cm">// 检测阈值 ADC LSB（冷启动低值）</span>
+<span class="kw">static</span> uint16_t s_sampling_us = <span class="nu">300</span>;   <span class="cm">// 采样周期 μs（首次默认 300）</span>
+
+<span class="cm">/* ── 轮胎常量 ── */</span>
+<span class="kw">#define</span> CAR_L_MM         <span class="nu">249u</span>   <span class="cm">// 接地弧长 mm（满载估算）</span>
+<span class="kw">#define</span> CAR_CIRC_MM      <span class="nu">1986u</span>  <span class="cm">// 周长 2πR mm</span>
+<span class="kw">#define</span> CAR_TARGET_PTS   <span class="nu">30u</span>    <span class="cm">// 每弧目标采样点数</span>
+<span class="kw">#define</span> CAR_TS_MIN       <span class="nu">93u</span>    <span class="cm">// 采样周期下限 μs（硬件限制）</span>
+<span class="kw">#define</span> CAR_TS_MAX       <span class="nu">2000u</span>  <span class="cm">// 采样周期上限 μs</span>
+<span class="kw">#define</span> CAR_F2R_MAX      <span class="nu">175u</span>   <span class="cm">// 接地弧最大允许点数</span>
+<span class="kw">#define</span> CAR_NTIMEOUT     <span class="nu">3500u</span>  <span class="cm">// 超时点数（约 3500×300μs = 1.05s）</span>
+
+<span class="cm">/* ════ 主检测函数，返回 CPR×10000，失败返回 -1 ════ */</span>
+int32_t <span class="fn">TPMS_Car_MeasureCPR</span>(void)
+{
+    Tms_Detect_Status_Type status;
+
+    <span class="cm">/* 步骤1：重置写指针，开始新一轮检测 */</span>
+    s_last_index = <span class="nu">0u</span>;
+
+    <span class="cm">/* 步骤2：调用检测函数 */</span>
+    status = <span class="fn">Tms_DetectPatchesZ</span>(
+        s_result,                        <span class="cm">// [OUT] 结果输出</span>
+        &amp;s_last_index,                   <span class="cm">// [STATE] 写指针（库自维护）</span>
+        s_data_buf,                      <span class="cm">// [BUF] 采样缓冲区</span>
+        <span class="nu">180u</span>,                            <span class="cm">// data_buffer_depth，固定180</span>
+        <span class="nu">2u</span>,                              <span class="cm">// npatches，固定2</span>
+        s_sampling_us,                   <span class="cm">// 采样周期（动态更新）</span>
+        <span class="hi">CAR_F2R_MAX</span>,                     <span class="cm">// 175，接地弧最大点数</span>
+        (int16_t)s_threshold,            <span class="cm">// 检测阈值（自适应）</span>
+        <span class="hi">CAR_NTIMEOUT</span>                     <span class="cm">// 超时点数</span>
+    );
+
+    <span class="cm">/* 步骤3：检测失败处理 */</span>
+    <span class="kw">if</span> (status != TMS_DETECT_OK) {
+        s_threshold = (s_threshold &gt; <span class="nu">20</span>) ? (s_threshold / <span class="nu">2</span>) : <span class="nu">10</span>;
+        <span class="kw">return</span> <span class="nu">-1</span>;
+    }
+
+    <span class="cm">/* 步骤4：计算 CPR×10000 */</span>
+    uint16_t n_patch  = s_result[<span class="nu">1</span>].i_re - s_result[<span class="nu">1</span>].i_fe;
+    uint16_t n_period = s_result[<span class="nu">1</span>].i_fe - s_result[<span class="nu">0</span>].i_fe;
+    <span class="kw">if</span> (n_period == <span class="nu">0u</span>) <span class="kw">return</span> <span class="nu">-1</span>;
+    int32_t cpr_x10000 = (int32_t)n_patch * <span class="nu">10000</span> / (int32_t)n_period;
+
+    <span class="cm">/* 步骤5：更新自适应阈值（EMA α=4） */</span>
+    uint16_t ap = s_result[<span class="nu">1</span>].a_patch;
+    s_a_ema = (s_a_ema == <span class="nu">0</span>) ? ap : (s_a_ema * <span class="nu">3</span> + ap) / <span class="nu">4</span>;
+    s_threshold = (s_a_ema / <span class="nu">40</span> &gt; <span class="nu">10</span>) ? s_a_ema / <span class="nu">40</span> : <span class="nu">10</span>;
+
+    <span class="cm">/* 步骤6：用 t_period 反算接地时间，更新采样周期 */</span>
+    uint32_t t_period_us = (uint32_t)n_period * s_sampling_us;
+    <span class="cm">// t_patch / t_period = L / 2πR（比例关系，速度约分）</span>
+    uint32_t t_patch_us  = (uint32_t)<span class="hi">CAR_L_MM</span> * t_period_us / (uint32_t)<span class="hi">CAR_CIRC_MM</span>;
+    uint16_t new_ts      = (uint16_t)(t_patch_us / <span class="hi">CAR_TARGET_PTS</span>);
+    <span class="kw">if</span> (new_ts &lt; <span class="hi">CAR_TS_MIN</span>)  new_ts = <span class="hi">CAR_TS_MIN</span>;
+    <span class="kw">if</span> (new_ts &gt; <span class="hi">CAR_TS_MAX</span>)  new_ts = <span class="hi">CAR_TS_MAX</span>;
+    s_sampling_us = new_ts;
+
+    <span class="kw">return</span> cpr_x10000;   <span class="cm">// 例：850 = CPR 0.0850 = 8.50%</span>
+}
+
+<span class="cm">/* ════ 载荷计算（从 NVRAM 读 k_x100、b） ════ */</span>
+int32_t <span class="fn">TPMS_CalcLoad</span>(int32_t cpr_x10000, int32_t k_x100, int32_t b)
+{
+    <span class="cm">// F = k × CPR + b = (k_x100/100) × (cpr_x10000/10000) + b</span>
+    <span class="kw">return</span> k_x100 * cpr_x10000 / <span class="nu">1000000</span> + b;
+}</div>
+  </div>
+
+  <!-- 卡车代码 -->
+  <div class="vehicle-panel" id="vpanel-truck">
+    <div class="danger-box" style="margin-bottom:14px">
+      <strong>卡车与乘用车的三大关键区别：</strong>
+      <ol style="margin:8px 0 0 18px;font-size:.9rem;line-height:1.8">
+        <li>Ts 下限从 93μs 提高到 <strong>400μs</strong>（防止低速重载时 f2r 点数溢出 uint8_t）</li>
+        <li>f2r_max 从 175 提高到 <strong>250</strong>（接地弧更长）</li>
+        <li>ntimeout 从 3500 提高到 <strong>6000</strong>（低速一圈时间更长）</li>
+      </ol>
+    </div>
+    <div class="code-block"><span class="cm">/* ════════ 卡车 Tms_DetectPatchesZ 完整使用示例 ════════
+ * 轮胎：295/80R22.5  R=510mm  L=436mm  2πR=3204mm
+ * ══════════════════════════════════════════════════ */</span>
+
+<span class="cm">/* ── 静态变量（同乘用车，必须全局/静态） ── */</span>
+<span class="kw">static</span> uint16_t               s_data_buf[<span class="nu">180</span>];
+<span class="kw">static</span> uint8_t                s_last_index;
+<span class="kw">static</span> Tms_Detect_Result_Type s_result[<span class="nu">2</span>];
+<span class="kw">static</span> int32_t  s_a_ema       = <span class="nu">0</span>;
+<span class="kw">static</span> int32_t  s_threshold   = <span class="nu">20</span>;
+<span class="kw">static</span> uint16_t s_sampling_us = <span class="nu">500</span>;   <span class="cm">// ← 卡车初始值用 500μs（乘用车是 300）</span>
+
+<span class="cm">/* ── 卡车轮胎常量 ── */</span>
+<span class="kw">#define</span> TRUCK_L_MM         <span class="nu">436u</span>   <span class="cm">// 接地弧长 mm（295/80R22.5 满载）</span>
+<span class="kw">#define</span> TRUCK_CIRC_MM      <span class="nu">3204u</span>  <span class="cm">// 周长 2πR mm</span>
+<span class="kw">#define</span> TRUCK_TARGET_PTS   <span class="nu">40u</span>    <span class="cm">// ← 卡车用 40点（接地弧长，精度更好）</span>
+<span class="kw">#define</span> TRUCK_TS_MIN       <span class="nu">400u</span>   <span class="cm">// ← 卡车下限 400μs（不是93！防f2r溢出）</span>
+<span class="kw">#define</span> TRUCK_TS_MAX       <span class="nu">3000u</span>  <span class="cm">// 低速时周期可以更长</span>
+<span class="kw">#define</span> TRUCK_F2R_MAX      <span class="nu">250u</span>   <span class="cm">// ← 卡车用 250（乘用车是 175）</span>
+<span class="kw">#define</span> TRUCK_NTIMEOUT     <span class="nu">6000u</span>  <span class="cm">// ← 卡车用 6000（低速一圈更长）</span>
+
+<span class="cm">/* ════ 主检测函数 ════ */</span>
+int32_t <span class="fn">TPMS_Truck_MeasureCPR</span>(void)
+{
+    Tms_Detect_Status_Type status;
+    s_last_index = <span class="nu">0u</span>;
+
+    status = <span class="fn">Tms_DetectPatchesZ</span>(
+        s_result,
+        &amp;s_last_index,
+        s_data_buf,
+        <span class="nu">180u</span>,
+        <span class="nu">2u</span>,
+        s_sampling_us,
+        <span class="hi">TRUCK_F2R_MAX</span>,                   <span class="cm">// 250 ← 关键！</span>
+        (int16_t)s_threshold,
+        <span class="hi">TRUCK_NTIMEOUT</span>                   <span class="cm">// 6000 ← 关键！</span>
+    );
+
+    <span class="kw">if</span> (status != TMS_DETECT_OK) {
+        s_threshold = (s_threshold &gt; <span class="nu">20</span>) ? (s_threshold / <span class="nu">2</span>) : <span class="nu">10</span>;
+        <span class="kw">return</span> <span class="nu">-1</span>;
+    }
+
+    uint16_t n_patch  = s_result[<span class="nu">1</span>].i_re - s_result[<span class="nu">1</span>].i_fe;
+    uint16_t n_period = s_result[<span class="nu">1</span>].i_fe - s_result[<span class="nu">0</span>].i_fe;
+    <span class="kw">if</span> (n_period == <span class="nu">0u</span>) <span class="kw">return</span> <span class="nu">-1</span>;
+    int32_t cpr_x10000 = (int32_t)n_patch * <span class="nu">10000</span> / (int32_t)n_period;
+
+    uint16_t ap = s_result[<span class="nu">1</span>].a_patch;
+    s_a_ema = (s_a_ema == <span class="nu">0</span>) ? ap : (s_a_ema * <span class="nu">3</span> + ap) / <span class="nu">4</span>;
+    s_threshold = (s_a_ema / <span class="nu">40</span> &gt; <span class="nu">10</span>) ? s_a_ema / <span class="nu">40</span> : <span class="nu">10</span>;
+
+    <span class="cm">/* 更新采样周期（Ts 下限 400μs，防止 f2r 溢出） */</span>
+    uint32_t t_period_us = (uint32_t)n_period * s_sampling_us;
+    uint32_t t_patch_us  = (uint32_t)<span class="hi">TRUCK_L_MM</span> * t_period_us / (uint32_t)<span class="hi">TRUCK_CIRC_MM</span>;
+    uint16_t new_ts      = (uint16_t)(t_patch_us / <span class="hi">TRUCK_TARGET_PTS</span>);
+    <span class="kw">if</span> (new_ts &lt; <span class="hi">TRUCK_TS_MIN</span>)  new_ts = <span class="hi">TRUCK_TS_MIN</span>;  <span class="cm">// ← 下限 400μs！</span>
+    <span class="kw">if</span> (new_ts &gt; <span class="hi">TRUCK_TS_MAX</span>)  new_ts = <span class="hi">TRUCK_TS_MAX</span>;
+    s_sampling_us = new_ts;
+
+    <span class="kw">return</span> cpr_x10000;
+}</div>
+
+    <!-- 卡车专用参数计算器 -->
+    <div class="truck-calc">
+      <h4>⚙️ 卡车 Ts_min 验证计算器（确认 f2r_max 不溢出）</h4>
+      <div class="param-calc-grid">
+        <div class="input-group">
+          <label>轮胎接地弧长 L（mm）</label>
+          <input type="number" id="tr_L" value="436" min="100" max="800" oninput="calcTruckTs()">
+        </div>
+        <div class="input-group">
+          <label>最低测量车速 v_min（km/h）</label>
+          <input type="number" id="tr_v" value="20" min="5" max="60" oninput="calcTruckTs()">
+        </div>
+        <div class="input-group">
+          <label>f2r_max 设定值（≤255）</label>
+          <input type="number" id="tr_f2r" value="250" min="100" max="255" oninput="calcTruckTs()">
+        </div>
+        <div class="input-group">
+          <label>目标采样点数</label>
+          <input type="number" id="tr_pts" value="40" min="15" max="80" oninput="calcTruckTs()">
+        </div>
+        <div class="param-calc-result">
+          <div class="row"><span>低速最大接地时间 t_patch_max</span><span class="val" id="tr_r_tpatch">—</span></div>
+          <div class="row"><span>f2r_max 不溢出所需 Ts_min</span><span class="val" id="tr_r_tsmin" style="color:#b55a1a;font-size:1.1rem">—</span></div>
+          <div class="row"><span>80km/h 时推算 Ts</span><span class="val" id="tr_r_ts80">—</span></div>
+          <div class="row"><span>安全判断</span><span class="val" id="tr_r_safe">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 调用时序 -->
+  <div class="vehicle-panel" id="vpanel-flow">
+    <p>函数在固件中的完整调用时序（每个测量周期执行一次）：</p>
+    <div class="step-flow">
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>上电初始化</strong>
+          <p>s_sampling_us = 300（乘用车）或 500（卡车），s_threshold = 20，s_last_index = 0，s_a_ema = 0</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>重置写指针：s_last_index = 0</strong>
+          <p>每次开始新一轮检测前必须重置，告诉库从头开始填充缓冲区</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>调用 Tms_DetectPatchesZ()</strong>
+          <p>函数内部以 sampling_period_us 间隔反复采样，直到找到 2 个接触弧或采样点数超过 ntimeout</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>判断返回值</strong>
+          <p>TMS_DETECT_OK → 继续。TMS_DETECT_TIMEOUT / 其他错误 → 降低阈值，本次跳过，下次重试</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <strong>计算 CPR</strong>
+          <p>n_patch = result[1].i_re − result[1].i_fe<br>
+             n_period = result[1].i_fe − result[0].i_fe<br>
+             cpr_x10000 = n_patch × 10000 / n_period</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <strong>更新自适应阈值（EMA）</strong>
+          <p>a_ema = (a_ema × 3 + result[1].a_patch) / 4<br>
+             threshold = max(a_ema / 40, 10)</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <strong>更新采样周期 Ts</strong>
+          <p>t_patch_us = L × n_period × Ts / 2πR<br>
+             new_ts = t_patch_us / 目标点数，钳位到 [Ts_min, Ts_max]</p>
+        </div>
+      </div>
+      <div class="step-item">
+        <div class="step-num">8</div>
+        <div class="step-content">
+          <strong>计算载荷并上报</strong>
+          <p>F = k_x100 × cpr_x10000 / 1000000 + b<br>
+             通过 RF 433MHz 广播载荷数据帧（0xCB 帧）</p>
+        </div>
+      </div>
+    </div>
+    <div class="callout ok" style="margin-top:16px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div class="callout-icon">✅</div>
+        <div><strong>整个检测周期耗时约 0.5~1.5 s</strong>（取决于车速）。
+        低速时一圈时间长，等待两个接触弧的时间就长。
+        高速时一圈快，整体检测也快。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 常见错误表 -->
+  <h3 style="margin-top:28px;font-size:1rem;color:var(--primary)">🚫 常见错误汇总</h3>
+  <table>
+    <thead><tr>
+      <th>错误</th><th>后果</th><th>正确做法</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td>s_data_buf / s_last_index 放在栈上</td>
+        <td>函数返回后被覆盖，下次结果乱</td>
+        <td>必须 <code>static</code> 或全局</td>
+      </tr>
+      <tr>
+        <td>npatches = 1</td>
+        <td>只有一个弧，算不出 t_period，无法得到 CPR</td>
+        <td>固定传 2</td>
+      </tr>
+      <tr>
+        <td>卡车用乘用车的 f2r_max=175</td>
+        <td>低速时接地弧点数 &gt; 175，被判为无效，TIMEOUT</td>
+        <td>卡车用 250</td>
+      </tr>
+      <tr style="background:#fff0f0">
+        <td><strong>卡车 Ts_min 用 93μs</strong></td>
+        <td><strong>低速重载时 f2r 实际点数 &gt; 255（uint8_t 溢出），永远检测失败</strong></td>
+        <td><strong>卡车 Ts_min ≥ 400μs</strong></td>
+      </tr>
+      <tr>
+        <td>sampling_period_us 固定不更新</td>
+        <td>高速时点数不够（精度差），低速时超缓冲（误检）</td>
+        <td>每次用 t_period 反算更新</td>
+      </tr>
+      <tr>
+        <td>detection_threshold 固定不变</td>
+        <td>车速变化后幅度变，阈值失配，漏检或误检</td>
+        <td>EMA 自适应更新</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ========================================================
+  9. 交互计算器 - CPR
+========================================================= -->
+<div class="section">
+  <h2>⑨ 交互计算器 A：从检测结果计算 CPR</h2>
   <p>输入 Tms_DetectPatchesZ() 返回的索引值，计算 CPR：</p>
   <div class="calc-grid">
     <div class="input-group">
@@ -1319,7 +1844,7 @@ load_calib.h 中使用的 3500 / 5000：<br>
   8. 交互计算器 - 标定
 ========================================================= -->
 <div class="section">
-  <h2>⑨ 交互计算器 B：两点标定求 k 和 b</h2>
+  <h2>⑩ 交互计算器 B：两点标定求 k 和 b</h2>
   <p>在两种已知载荷下分别测得稳定 CPR，计算标定系数 k 和 b：</p>
   <div class="calib-section">
     <div class="calib-points">
@@ -1491,7 +2016,44 @@ function calcLoad() {
   document.getElementById('r_load_raw').textContent  = load_raw.toFixed(1) + ' kg';
   document.getElementById('r_load_comp').textContent = load_comp.toFixed(1) + ' kg';
 }
-/* ── 参数 Tab 切换 ── */
+/* ── 车型 Tab 切换 ── */
+function showVehicle(name) {
+  document.querySelectorAll('.vehicle-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.vehicle-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById('vpanel-' + name);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll('.vehicle-tab').forEach(t => {
+    if (t.getAttribute('onclick') === "showVehicle('" + name + "')") t.classList.add('active');
+  });
+}
+
+/* ── 卡车 Ts_min 验证计算器 ── */
+function calcTruckTs() {
+  const L    = parseFloat(document.getElementById('tr_L').value)    || 436;
+  const v    = parseFloat(document.getElementById('tr_v').value)    || 20;
+  const f2r  = parseFloat(document.getElementById('tr_f2r').value)  || 250;
+  const pts  = parseFloat(document.getElementById('tr_pts').value)  || 40;
+
+  const v_mms        = v * 1000 / 3.6;                    // mm/s
+  const t_patch_max  = L / v_mms * 1e6;                   // μs（低速时最大）
+  const ts_min_req   = t_patch_max / (f2r / 1.2);         // 不溢出所需最小 Ts
+  const ts_80kmh     = (L / (80*1000/3.6) * 1e6) / pts;   // 80km/h 时的 Ts
+
+  document.getElementById('tr_r_tpatch').textContent  = (t_patch_max/1000).toFixed(1) + ' ms = ' + t_patch_max.toFixed(0) + ' μs';
+  document.getElementById('tr_r_tsmin').textContent   = ts_min_req.toFixed(0) + ' μs（Ts_min 必须 ≥ 此值）';
+  document.getElementById('tr_r_ts80').textContent    = ts_80kmh.toFixed(0) + ' μs';
+
+  const safe = ts_min_req < f2r * 1.0;
+  document.getElementById('tr_r_safe').textContent =
+    ts_min_req <= 400
+      ? '✅ 安全（Ts_min = ' + Math.ceil(ts_min_req) + ' μs，建议设 ' + (Math.ceil(ts_min_req/50)*50) + ' μs）'
+      : '⚠️ 需要 Ts_min ≥ ' + Math.ceil(ts_min_req) + ' μs，否则 f2r 溢出！';
+  document.getElementById('tr_r_safe').style.color =
+    ts_min_req <= 400 ? 'var(--green)' : 'var(--red)';
+}
+calcTruckTs();
+
+
 function showParam(name) {
   document.querySelectorAll('.param-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.param-tab').forEach(t => t.classList.remove('active'));
