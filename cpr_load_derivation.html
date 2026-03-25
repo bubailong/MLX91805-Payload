@@ -27,9 +27,11 @@
     background: linear-gradient(135deg, #0d3c6e 0%, #1a6eb5 60%, #2a9fd6 100%);
     color: white; padding: 40px 48px 36px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.20);
+    text-align: center;
   }
   .page-header h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: .04em; }
   .page-header .sub { opacity: .80; margin-top: 6px; font-size: .95rem; }
+  .page-header .chip-wrap { margin-top: 16px; }
   .chip-tag {
     display: inline-block; background: rgba(255,255,255,.18);
     border: 1px solid rgba(255,255,255,.35);
@@ -268,10 +270,12 @@
 <div class="page-header">
   <h1>MLX91805 接触弧检测 · CPR · 载荷推导</h1>
   <div class="sub">完整原理说明 · 数学推导过程 · 交互计算器</div>
-  <span class="chip-tag">MLX91805</span>
-  <span class="chip-tag">Tms_DetectPatchesZ</span>
-  <span class="chip-tag">CPR → Load Calibration</span>
-  <span class="chip-tag">LF 125kHz + RF 433MHz</span>
+  <div class="chip-wrap">
+    <span class="chip-tag">MLX91805</span>
+    <span class="chip-tag">Tms_DetectPatchesZ</span>
+    <span class="chip-tag">CPR → Load Calibration</span>
+    <span class="chip-tag">LF 125kHz + RF 433MHz</span>
+  </div>
 </div>
 
 <main>
