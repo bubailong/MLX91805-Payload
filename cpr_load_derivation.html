@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MLX91805 CPR 检测原理与载荷推导</title>
+<style>
+  :root {
+    --primary: #1a6eb5;
+    --accent:  #e8a020;
+    --green:   #27ae60;
+    --red:     #c0392b;
+    --bg:      #f4f6fb;
+    --card:    #ffffff;
+    --border:  #d5e0f0;
+    --text:    #1c2b3a;
+    --code-bg: #eef2f8;
+    --shadow:  0 2px 12px rgba(26,110,181,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC","Microsoft YaHei",sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.75; font-size: 15px;
+  }
+  .page-header {
+    background: linear-gradient(135deg, #0d3c6e 0%, #1a6eb5 60%, #2a9fd6 100%);
+    color: white; padding: 40px 48px 36px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.20);
+  }
+  .page-header h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: .04em; }
+  .page-header .sub { opacity: .80; margin-top: 6px; font-size: .95rem; }
+  .chip-tag {
+    display: inline-block; background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    padding: 2px 12px; border-radius: 20px; font-size:.82rem;
+    margin-top: 14px; margin-right: 8px; letter-spacing: .03em;
+  }
+
+  main { max-width: 960px; margin: 0 auto; padding: 32px 24px 60px; }
+
+  /* section card */
+  .section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 32px 36px; margin-bottom: 28px;
+    box-shadow: var(--shadow);
+  }
+  .section h2 {
+    font-size: 1.22rem; color: var(--primary);
+    border-left: 4px solid var(--primary);
+    padding-left: 14px; margin-bottom: 20px;
+  }
+  .section h3 {
+    font-size: 1.04rem; color: var(--text);
+    margin-top: 22px; margin-bottom: 10px; font-weight: 600;
+  }
+  p { margin-bottom: 12px; }
+
+  /* formula box */
+  .formula-box {
+    background: #f0f5ff; border: 1.5px solid #bad0f0;
+    border-radius: 8px; padding: 16px 22px; margin: 14px 0;
+    font-family: "Courier New", monospace; font-size: 1.0rem;
+    overflow-x: auto; line-height: 2;
+  }
+  .formula-box .comment { color: #7a8fa8; font-style: italic; }
+  .hi { color: var(--primary); font-weight: 700; }
+  .hi-acc { color: var(--accent); font-weight: 700; }
+  .hi-g { color: var(--green); font-weight: 700; }
+  .hi-r { color: var(--red); font-weight: 700; }
+
+  /* steps */
+  .steps { counter-reset: step; }
+  .step {
+    display: flex; gap: 16px; margin-bottom: 18px; align-items: flex-start;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    background: var(--primary); color: white;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: .9rem;
+    margin-top: 2px;
+  }
+  .step-body { flex: 1; }
+  .step-body p { margin-bottom: 6px; }
+
+  /* comparison table */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; }
+  th {
+    background: var(--primary); color: white;
+    padding: 10px 14px; text-align: left; font-size: .92rem;
+  }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:nth-child(even) td { background: #f8faff; }
+  .yes { color: var(--green); font-weight: 700; }
+  .no  { color: var(--red); font-weight: 700; }
+
+  /* SVG canvas */
+  .canvas-wrap {
+    background: #0b1e35; border-radius: 10px;
+    padding: 0; overflow: hidden; margin: 18px 0;
+    position: relative;
+  }
+  svg text { font-family: "Courier New", monospace; }
+
+  /* interactive calculator */
+  .calc-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-top: 16px;
+  }
+  @media(max-width:640px){ .calc-grid { grid-template-columns: 1fr; } }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label {
+    font-size: .87rem; color: #4a6080; font-weight: 600;
+  }
+  .input-group input, .input-group select {
+    border: 1.5px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; font-size: .95rem; outline: none;
+    transition: border .2s;
+  }
+  .input-group input:focus { border-color: var(--primary); }
+  .calc-btn {
+    grid-column: 1/-1;
+    background: var(--primary); color: white;
+    border: none; border-radius: 8px; padding: 12px;
+    font-size: 1rem; font-weight: 700; cursor: pointer;
+    transition: background .2s;
+  }
+  .calc-btn:hover { background: #0e5299; }
+  .result-panel {
+    grid-column: 1/-1; margin-top: 4px;
+    background: linear-gradient(135deg, #eef6ff, #f4fbf0);
+    border: 1.5px solid #bad0f0; border-radius: 8px;
+    padding: 18px 24px;
+  }
+  .result-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; border-bottom: 1px dashed #d0e0f0;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { color: #4a6080; font-size: .9rem; }
+  .result-value { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+  .result-value.big { font-size: 1.35rem; color: var(--green); }
+
+  /* calib calculator */
+  .calib-section { margin-top: 20px; }
+  .calib-points { display: flex; gap: 16px; }
+  @media(max-width:640px){ .calib-points { flex-direction: column; } }
+  .calib-point {
+    flex: 1; background: #f8faff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+  }
+  .calib-point h4 {
+    font-size: .88rem; color: var(--primary); font-weight: 700;
+    margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .calib-result {
+    background: #fff8ee; border: 1.5px solid #f5c97e;
+    border-radius: 8px; padding: 14px 20px; margin-top: 14px;
+  }
+  .calib-result .kb {
+    font-family: "Courier New", monospace; font-size: 1.05rem;
+    color: var(--accent); font-weight: 700; margin: 4px 0;
+  }
+
+  /* callout */
+  .callout {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 14px 18px; border-radius: 8px; margin: 14px 0;
+  }
+  .callout.info { background: #eef5ff; border-left: 4px solid var(--primary); }
+  .callout.warn { background: #fff8ee; border-left: 4px solid var(--accent); }
+  .callout.ok   { background: #eefaf2; border-left: 4px solid var(--green); }
+  .callout-icon { font-size: 1.3rem; margin-top: 1px; }
+  .callout p { margin: 0; font-size: .93rem; }
+
+  /* nvram layout */
+  .nvram-table th, .nvram-table td {
+    font-family: "Courier New", monospace; font-size: .85rem;
+  }
+  .nvram-table th { background: #2c3e50; }
+
+  /* animation control */
+  #anim-tire { cursor: pointer; }
+  #anim-tire:hover .play-hint { opacity: 1; }
+  .play-hint { opacity: .6; transition: opacity .2s; }
+
+  /* ── 参数推导专用样式 ── */
+  .param-tabs {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+  }
+  .param-tab {
+    padding: 7px 16px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid var(--border); background: #f0f5ff;
+    font-size: .88rem; font-weight: 600; color: #4a6080;
+    transition: all .18s;
+  }
+  .param-tab.active, .param-tab:hover {
+    background: var(--primary); color: white; border-color: var(--primary);
+  }
+  .param-panel { display: none; }
+  .param-panel.active { display: block; }
+
+  .param-header {
+    display: flex; align-items: flex-start; gap: 18px;
+    padding: 16px 20px; background: #f0f5ff;
+    border: 1.5px solid #c0d8f8; border-radius: 10px; margin-bottom: 16px;
+  }
+  .param-sig {
+    font-family: "Courier New", monospace;
+    font-size: 1.08rem; font-weight: 700; color: var(--primary);
+    min-width: 220px;
+  }
+  .param-type { font-size: .82rem; color: #7a90b0; font-weight: 400; display: block; margin-top: 2px; }
+  .param-brief { font-size: .93rem; line-height: 1.6; }
+
+  .derive-block {
+    background: #f8fafe; border-left: 4px solid var(--primary);
+    border-radius: 0 8px 8px 0; padding: 14px 20px; margin: 12px 0;
+  }
+  .derive-block h4 { font-size: .9rem; color: var(--primary); margin-bottom: 8px; }
+
+  .param-calc {
+    background: #eef6ff; border: 1.5px solid #c0d8f8;
+    border-radius: 8px; padding: 16px 20px; margin-top: 14px;
+  }
+  .param-calc h4 {
+    font-size: .9rem; font-weight: 700; color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .param-calc-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media(max-width:640px){ .param-calc-grid { grid-template-columns: 1fr; } }
+  .param-calc-result {
+    grid-column: 1/-1; background: #fff;
+    border: 1.5px solid #c0d8f8; border-radius: 6px;
+    padding: 12px 16px;
+  }
+  .param-calc-result .row {
+    display: flex; justify-content: space-between; padding: 5px 0;
+    border-bottom: 1px dashed #d8e8f8; font-size: .92rem;
+  }
+  .param-calc-result .row:last-child { border-bottom: none; }
+  .param-calc-result .val { font-weight: 700; color: var(--primary); font-family: monospace; }
+
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: .78rem; font-weight: 700; margin-left: 8px; vertical-align: middle;
+  }
+  .badge-static { background: #d8e8ff; color: #1a5ea0; }
+  .badge-dynamic { background: #d8f8e8; color: #1a8040; }
+  .badge-adaptive { background: #fff0d0; color: #a05010; }
+
+  .param-overview {
+    overflow-x: auto; margin-bottom: 0;
+  }
+  .param-overview table th { font-family: monospace; font-size:.85rem; }
+  .param-overview table td { font-size: .88rem; }
+  .param-overview td:nth-child(2) { font-family: monospace; color: var(--primary); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>MLX91805 接触弧检测 · CPR · 载荷推导</h1>
+  <div class="sub">完整原理说明 · 数学推导过程 · 交互计算器</div>
+  <span class="chip-tag">MLX91805</span>
+  <span class="chip-tag">Tms_DetectPatchesZ</span>
+  <span class="chip-tag">CPR → Load Calibration</span>
+  <span class="chip-tag">LF 125kHz + RF 433MHz</span>
+</div>
+
+<main>
+
+<!-- ========================================================
+  1. 系统概述
+========================================================= -->
+<div class="section">
+  <h2>① 系统概述：传感器如何感知载荷？</h2>
+  <p>MLX91805 是一颗安装在轮胎<strong>内壁</strong>的加速度传感器。当轮胎以某角速度滚动时，传感器绝大多数时间都在做圆周运动，受到强烈的离心加速度。但当传感器随轮胎转到<strong>"接地区"</strong>（轮胎被地面压平的那段弧）时，轮胎形变会产生一个方向和大小都异常的加速度脉冲。</p>
+
+  <!-- 轮胎示意图 SVG -->
+  <div class="canvas-wrap">
+    <svg id="anim-tire" viewBox="0 0 820 260" width="100%" style="display:block">
+      <defs>
+        <radialGradient id="tireGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#2c4a6e"/>
+          <stop offset="100%" stop-color="#0b1e35"/>
+        </radialGradient>
+      </defs>
+      <!-- ground -->
+      <rect x="0" y="192" width="820" height="68" fill="#1a2a1a"/>
+      <rect x="0" y="192" width="820" height="4" fill="#3a5a3a"/>
+      <!-- contact patch highlight -->
+      <ellipse cx="200" cy="196" rx="72" ry="7" fill="#4a9a4a" opacity="0.45"/>
+      <text x="200" y="230" text-anchor="middle" fill="#7acc7a" font-size="12">接地区（Contact Patch）</text>
+
+      <!-- tire outline -->
+      <circle cx="200" cy="130" r="90" fill="none" stroke="#3a6aa0" stroke-width="20" stroke-dasharray="4 3"/>
+      <circle cx="200" cy="130" r="90" fill="none" stroke="#5a8acc" stroke-width="2"/>
+      <circle cx="200" cy="130" r="70" fill="none" stroke="#2a4a7a" stroke-width="1.5"/>
+      <!-- rim -->
+      <circle cx="200" cy="130" r="45" fill="#1a3050" stroke="#4a7ab0" stroke-width="2"/>
+      <circle cx="200" cy="130" r="6" fill="#6aacf0"/>
+
+      <!-- rotating sensor dot -->
+      <g id="sensor-group">
+        <circle id="sensor-dot" cx="200" cy="40" r="7" fill="#f0a020" stroke="#fff" stroke-width="1.5"/>
+        <text id="sensor-label" x="216" y="38" fill="#f0c060" font-size="11" font-weight="bold">传感器</text>
+      </g>
+
+      <!-- annotation line to patch -->
+      <line x1="128" y1="196" x2="128" y2="170" stroke="#7acc7a" stroke-width="1" stroke-dasharray="3 3"/>
+      <line x1="272" y1="196" x2="272" y2="170" stroke="#7acc7a" stroke-width="1" stroke-dasharray="3 3"/>
+      <path d="M128,170 Q200,155 272,170" fill="none" stroke="#7acc7a" stroke-width="1.5"/>
+
+      <!-- signal panel -->
+      <rect x="380" y="20" width="420" height="220" fill="none"/>
+      <text x="380" y="18" fill="#7aa0cc" font-size="13" font-weight="bold">Z轴加速度信号（传感器视角）</text>
+
+      <!-- axes -->
+      <line x1="380" y1="120" x2="800" y2="120" stroke="#3a6090" stroke-width="1.5"/>
+      <line x1="385" y1="30" x2="385" y2="210" stroke="#3a6090" stroke-width="1.5"/>
+      <text x="806" y="124" fill="#3a6090" font-size="11">t</text>
+      <text x="370" y="34" fill="#3a6090" font-size="11">az</text>
+
+      <!-- signal waveform: high baseline (centrifugal), dip at contact patch -->
+      <!-- One revolution drawn: centrifugal level + 2 contact patches -->
+      <path id="waveform" d="
+        M 390,75
+        L 440,75
+        Q 450,75 455,88
+        C 462,106 468,150 475,168
+        C 479,178 482,182 490,182
+        C 498,182 502,178 506,168
+        C 513,150 519,106 526,88
+        Q 530,75 540,75
+        L 590,75
+        Q 600,75 605,88
+        C 612,106 618,150 625,168
+        C 629,178 632,182 640,182
+        C 648,182 652,178 656,168
+        C 663,150 669,106 676,88
+        Q 680,75 690,75
+        L 790,75
+      " fill="none" stroke="#f0a020" stroke-width="2"/>
+
+      <!-- marker: i_fe0, i_re0, i_fe1, i_re1 -->
+      <line x1="455" y1="50" x2="455" y2="195" stroke="#e05050" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <line x1="526" y1="50" x2="526" y2="195" stroke="#50c050" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <line x1="605" y1="50" x2="605" y2="195" stroke="#e05050" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <line x1="676" y1="50" x2="676" y2="195" stroke="#50c050" stroke-width="1.2" stroke-dasharray="4 3"/>
+
+      <text x="450" y="48" fill="#e05050" font-size="11">i_fe₀</text>
+      <text x="520" y="48" fill="#50c050" font-size="11">i_re₀</text>
+      <text x="600" y="48" fill="#e05050" font-size="11">i_fe₁</text>
+      <text x="670" y="48" fill="#50c050" font-size="11">i_re₁</text>
+
+      <!-- n_patch brace -->
+      <line x1="605" y1="200" x2="676" y2="200" stroke="#f0a020" stroke-width="1.5"/>
+      <line x1="605" y1="196" x2="605" y2="204" stroke="#f0a020" stroke-width="1.5"/>
+      <line x1="676" y1="196" x2="676" y2="204" stroke="#f0a020" stroke-width="1.5"/>
+      <text x="630" y="218" fill="#f0a020" font-size="11" text-anchor="middle">n_patch</text>
+
+      <!-- n_period brace -->
+      <line x1="455" y1="210" x2="605" y2="210" stroke="#5ab8ff" stroke-width="1.5"/>
+      <line x1="455" y1="206" x2="455" y2="214" stroke="#5ab8ff" stroke-width="1.5"/>
+      <line x1="605" y1="206" x2="605" y2="214" stroke="#5ab8ff" stroke-width="1.5"/>
+      <text x="530" y="228" fill="#5ab8ff" font-size="11" text-anchor="middle">n_period（一圈）</text>
+
+      <!-- CPR label -->
+      <text x="640" y="155" fill="#f8f8f8" font-size="12" font-weight="bold">CPR =</text>
+      <text x="640" y="170" fill="#f0a020" font-size="12" font-weight="bold">n_patch / n_period</text>
+
+      <!-- play hint -->
+      <text class="play-hint" x="200" y="255" fill="#4a8aaa" font-size="11" text-anchor="middle">← 点击左侧轮胎播放动画</text>
+    </svg>
+  </div>
+
+  <p>关键观察：信号在接地区出现明显的<strong style="color:#c0392b">下凹（dip）</strong>，这是因为接地时离心加速度突然被地面反力抵消，Z 轴读数骤降。<code>Tms_DetectPatchesZ()</code> 就是通过检测这个下凹的起止点来确定接地弧的时间范围。</p>
+</div>
+
+<!-- ========================================================
+  2. Tms_DetectPatchesZ 工作机制
+========================================================= -->
+<div class="section">
+  <h2>② Tms_DetectPatchesZ() 的完整工作机制</h2>
+
+  <h3>函数签名（官方 sensorlib.h）</h3>
+  <div class="formula-box">
+<span class="hi">Tms_Detect_Status_Type</span> Tms_DetectPatchesZ(<br>
+&nbsp;&nbsp;Tms_Detect_Result_Type  *p_result,           <span class="comment">// 结果数组（外部分配）</span><br>
+&nbsp;&nbsp;uint8_t                 *p_last_index,        <span class="comment">// 环形缓冲区写指针（库自维护）</span><br>
+&nbsp;&nbsp;uint16_t                *p_data_buffer,       <span class="comment">// 采样缓冲区（静态，不能放栈上）</span><br>
+&nbsp;&nbsp;uint8_t                  data_buffer_depth,   <span class="comment">// = 180</span><br>
+&nbsp;&nbsp;uint8_t                  npatches,            <span class="comment">// = 2（要检测两个接触弧）</span><br>
+&nbsp;&nbsp;uint16_t                 sampling_period_us,  <span class="comment">// 采样间隔（微秒）</span><br>
+&nbsp;&nbsp;uint8_t                  f2r_max,             <span class="comment">// 前弧/后弧最大比值（防误检）</span><br>
+&nbsp;&nbsp;int16_t                  detection_threshold, <span class="comment">// 检测幅度阈值（ADC 量纲）</span><br>
+&nbsp;&nbsp;uint16_t                 ntimeout             <span class="comment">// 超时采样点数</span><br>
+);
+  </div>
+
+  <h3>返回的结果结构体</h3>
+  <div class="formula-box">
+typedef struct {<br>
+&nbsp;&nbsp;uint16_t <span class="hi">i_fe</span>;    <span class="comment">// 接地前沿（falling edge）的采样索引</span><br>
+&nbsp;&nbsp;uint16_t <span class="hi">i_re</span>;    <span class="comment">// 接地后沿（rising edge）的采样索引</span><br>
+&nbsp;&nbsp;uint16_t a_patch; <span class="comment">// 接触弧信号幅度（ADC量纲）</span><br>
+} Tms_Detect_Result_Type;
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <p><strong>重要：</strong>结构体里没有时间字段！函数只返回采样<strong>索引（index）</strong>。
+    要得到时间，必须乘以 <code>sampling_period_us</code>。
+    但计算 CPR 时，两个时间相除，<code>sampling_period_us</code> 会约分掉，
+    因此 <strong>CPR 计算可以完全在索引域内进行，不需要知道采样间隔</strong>。</p>
+  </div>
+
+  <h3>为什么必须 npatches = 2（检测两个接触弧）？</h3>
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <p>计算 CPR 需要"一圈的时间"（<strong>t_period</strong>）。
+    一个接触弧只能告诉你它自己的时长（t_patch），但无法告诉你一圈多长。
+    必须等到<strong>第二个接触弧出现</strong>，用两次接地的起始时刻之差，才能得到一整圈的时间。</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <p><strong>第一个接触弧到来</strong>：检测到 i_fe₀（前沿）和 i_re₀（后沿）。记录但不足以计算 CPR。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <p><strong>轮胎继续转动</strong>：传感器离开接地区，回到离心加速度状态，等待下一圈。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <p><strong>第二个接触弧到来</strong>：检测到 i_fe₁（前沿）和 i_re₁（后沿）。至此：
+          <br>• <strong>n_period</strong> = i_fe₁ − i_fe₀ → 一整圈经过了多少个采样点
+          <br>• <strong>n_patch</strong> &nbsp;= i_re₁ − i_fe₁ → 第二次接地持续了多少个采样点
+        </p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <p>函数返回 <code>DETECT_DONE</code>，调用方计算 CPR。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+  3. CPR 完整推导
+========================================================= -->
+<div class="section">
+  <h2>③ CPR 完整推导过程</h2>
+
+  <h3>第一步：从索引换算为时间</h3>
+  <div class="formula-box">
+<span class="comment">// 采样索引 → 物理时间（单位：μs）</span><br>
+t_patch  = (<span class="hi-acc">i_re₁</span> − <span class="hi-r">i_fe₁</span>) × sampling_period_us   <span class="comment">// 接触弧时长</span><br>
+t_period = (<span class="hi-r">i_fe₁</span> − <span class="hi-r">i_fe₀</span>) × sampling_period_us   <span class="comment">// 一圈总时长</span>
+  </div>
+
+  <h3>第二步：计算 CPR（接触弧比）</h3>
+  <div class="formula-box">
+CPR = t_patch / t_period<br>
+    = [(<span class="hi-acc">i_re₁</span> − <span class="hi-r">i_fe₁</span>) × sampling_period_us]<br>
+    &nbsp;&nbsp; / [(<span class="hi-r">i_fe₁</span> − <span class="hi-r">i_fe₀</span>) × sampling_period_us]<br>
+    = (<span class="hi-acc">i_re₁</span> − <span class="hi-r">i_fe₁</span>) / (<span class="hi-r">i_fe₁</span> − <span class="hi-r">i_fe₀</span>)  <span class="comment">// sampling_period 约分，完全在索引域计算！</span>
+  </div>
+
+  <h3>第三步：整数定点化（避免浮点运算）</h3>
+  <p>MCU 没有 FPU，使用"放大 10000 倍"的定点整数表示（CPR_x10000 = CPR × 10000）：</p>
+  <div class="formula-box">
+<span class="comment">// 等效于 CPR×10000，用 uint32 运算（n_patch≤180，×10000=1800000，不溢出）</span><br>
+<span class="hi">uint16_t</span> n_patch  = (<span class="hi-acc">i_re₁</span> − <span class="hi-r">i_fe₁</span>);   <span class="comment">// 接触弧采样点数</span><br>
+<span class="hi">uint16_t</span> n_period = (<span class="hi-r">i_fe₁</span> − <span class="hi-r">i_fe₀</span>);  <span class="comment">// 一圈采样点数</span><br>
+<br>
+<span class="hi">uint32_t</span> cpr_x10000 = ((uint32_t)n_patch × 10000u) / (uint32_t)n_period;<br>
+<br>
+<span class="comment">// 例：n_patch=23, n_period=290</span><br>
+<span class="comment">// cpr_x10000 = 23×10000/290 = 793  →  CPR = 7.93%</span>
+  </div>
+
+  <h3>第四步：CPR 的物理意义</h3>
+  <div class="canvas-wrap" style="background:#1a2a1a; padding: 18px 24px;">
+    <svg viewBox="0 0 600 170" width="100%" style="display:block">
+      <!-- tire cross section -->
+      <ellipse cx="100" cy="85" rx="65" ry="65" fill="none" stroke="#4a7aaa" stroke-width="12"/>
+      <ellipse cx="100" cy="85" rx="65" ry="65" fill="none" stroke="#2a4a6a" stroke-width="1"/>
+      <!-- ground -->
+      <rect x="20" y="148" width="160" height="15" fill="#2a4a2a"/>
+      <!-- contact patch arc  -->
+      <path d="M 48,148 A 65,65 0 0,1 152,148" fill="none" stroke="#4ac04a" stroke-width="5"/>
+      <!-- angle annotation -->
+      <line x1="100" y1="85" x2="48" y2="148" stroke="#f0c060" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="100" y1="85" x2="152" y2="148" stroke="#f0c060" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <!-- arc angle label -->
+      <path d="M 100,110 A 30,30 0 0,0 72,130" fill="none" stroke="#f0c060" stroke-width="1.5"/>
+      <text x="65" y="128" fill="#f0c060" font-size="13">θ</text>
+
+      <!-- formula -->
+      <text x="230" y="50" fill="#e0e8f0" font-size="14" font-weight="bold">CPR 的几何本质：</text>
+      <text x="230" y="80" fill="#7aa8d0" font-size="13">CPR = θ / (2π)</text>
+      <text x="230" y="105" fill="#7aa8d0" font-size="13">θ = 接地弧所对圆心角</text>
+      <text x="230" y="130" fill="#4ac04a" font-size="13">CPR 只取决于轮胎压缩量（δ）</text>
+      <text x="230" y="155" fill="#4ac04a" font-size="13">与车速完全无关！</text>
+
+      <!-- delta label -->
+      <line x1="100" y1="148" x2="100" y2="85" stroke="#c05050" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <line x1="100" y1="148" x2="100" y2="120" stroke="#c05050" stroke-width="2.5"/>
+      <text x="108" y="137" fill="#c05050" font-size="12">δ（挠度）</text>
+    </svg>
+  </div>
+
+  <div class="formula-box">
+<span class="comment">// 接地弧长 L = 2 × √(2Rδ - δ²) ≈ 2√(2Rδ)  （δ≪R 时）</span><br>
+<span class="comment">// 一圈周长 = 2πR</span><br>
+CPR ≈ L / (2πR) = <span class="hi">2√(2Rδ)</span> / <span class="hi-acc">(2πR)</span> = √(2δ/R) / π<br>
+<br>
+<span class="comment">// 轮胎挠度 δ 由载荷 F 决定（胎压 P、接触面积 A 共同决定 δ）：</span><br>
+<span class="comment">// 在正常工况下 δ ∝ F （近似线性关系）</span><br>
+<span class="comment">// 所以 CPR² ∝ F → 或在小形变范围内 CPR ∝ F（一阶近似）</span>
+  </div>
+
+  <div class="callout ok">
+    <div class="callout-icon">✅</div>
+    <p>这就是为什么可以用 <strong>CPR（%） 与 载荷（kg）的线性关系</strong> 来标定的物理依据——在正常行驶载荷范围内，这个线性近似的误差足够小（通常 &lt; 3%）。</p>
+  </div>
+</div>
+
+<!-- ========================================================
+  4. 为什么不能直接用 t_patch
+========================================================= -->
+<div class="section">
+  <h2>④ 为什么不能直接用 t_patch，必须用 CPR？</h2>
+  <table>
+    <thead><tr>
+      <th>对比项</th>
+      <th>直接用 t_patch（接触时长）</th>
+      <th>用 CPR = t_patch / t_period</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>同一载荷，速度加倍</strong></td>
+        <td class="no">t_patch 减半（误判为载荷减半）</td>
+        <td class="yes">CPR 不变（比值恒定）</td>
+      </tr>
+      <tr>
+        <td><strong>标定条件</strong></td>
+        <td class="no">必须在固定速度下标定，否则无效</td>
+        <td class="yes">任意速度下标定一次，处处有效</td>
+      </tr>
+      <tr>
+        <td><strong>标定公式</strong></td>
+        <td class="no">F = k·t_patch·v（需要额外测速）</td>
+        <td class="yes">F = k·CPR + b（无需速度项）</td>
+      </tr>
+      <tr>
+        <td><strong>物理含义</strong></td>
+        <td>时间量，与速度强耦合</td>
+        <td class="yes">纯几何量（接地弧角/2π），只依赖形变</td>
+      </tr>
+      <tr>
+        <td><strong>工程实用性</strong></td>
+        <td class="no">车速变化时需实时补偿，复杂</td>
+        <td class="yes">一组 k/b 全速度段通用，简单可靠</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>数值举例说明</h3>
+  <div class="formula-box">
+场景：轮胎半径 R = 320 mm，某载荷下接地弧角 θ = 28.6°<br>
+<br>
+低速 v = 30 km/h → 转速 n = 4.14 rps → t_period = 242 ms<br>
+&nbsp;&nbsp;t_patch  = 28.6/360 × 242 ms = <span class="hi-r">19.2 ms</span><br>
+&nbsp;&nbsp;CPR      = 28.6/360 = <span class="hi-g">7.94%</span><br>
+<br>
+高速 v = 100 km/h → 转速 n = 13.8 rps → t_period = 72.5 ms<br>
+&nbsp;&nbsp;t_patch  = 28.6/360 × 72.5 ms = <span class="hi-r">5.76 ms</span>（↓ 3.3×！）<br>
+&nbsp;&nbsp;CPR      = 28.6/360 = <span class="hi-g">7.94%</span>（完全不变 ✓）
+  </div>
+</div>
+
+<!-- ========================================================
+  5. 从 CPR 到载荷：标定推导
+========================================================= -->
+<div class="section">
+  <h2>⑤ 从 CPR 到载荷：线性标定的完整推导</h2>
+
+  <h3>模型建立</h3>
+  <p>在正常行驶载荷范围内（空载～满载），CPR 与垂向载荷 F 满足近似线性关系：</p>
+  <div class="formula-box">
+<span class="hi">F</span> = k · <span class="hi-acc">CPR(%)</span> + b<br>
+<br>
+其中：<br>
+&nbsp;&nbsp;<span class="hi">F</span>  = 轮胎垂向载荷（kg）<br>
+&nbsp;&nbsp;<span class="hi-acc">CPR</span> = Contact Patch Ratio（接触弧比，单位 %）<br>
+&nbsp;&nbsp;k  = 斜率（kg/%），载荷每增加 1 kg，CPR 增加 1/k %<br>
+&nbsp;&nbsp;b  = 截距（kg），CPR=0 时的等效载荷（通常为负值）
+  </div>
+
+  <h3>两点标定法（求 k 和 b）</h3>
+  <p>选取两种已知载荷 F₁、F₂（例如空载和满载），分别测量稳定的 CPR₁、CPR₂：</p>
+  <div class="formula-box">
+联立方程：<br>
+&nbsp;&nbsp;F₁ = k·CPR₁ + b  &nbsp;&nbsp;&nbsp;...(1)<br>
+&nbsp;&nbsp;F₂ = k·CPR₂ + b  &nbsp;&nbsp;&nbsp;...(2)<br>
+<br>
+(2)-(1)：<br>
+&nbsp;&nbsp;F₂ - F₁ = k·(CPR₂ - CPR₁)<br>
+&nbsp;&nbsp;<span class="hi">k = (F₂ - F₁) / (CPR₂ - CPR₁)</span><br>
+<br>
+代回 (1)：<br>
+&nbsp;&nbsp;<span class="hi">b = F₁ - k·CPR₁</span><br>
+<br>
+固件中以整数存储（避免浮点）：<br>
+&nbsp;&nbsp;<span class="hi-acc">k_x100 = round(k × 100)</span> &nbsp;&nbsp;<span class="comment">// 保留2位小数</span><br>
+&nbsp;&nbsp;<span class="hi-acc">b_kg   = round(b)</span>         &nbsp;&nbsp;&nbsp;<span class="comment">// 单位 kg，整数</span>
+  </div>
+
+  <h3>运行时载荷估算</h3>
+  <div class="formula-box">
+<span class="comment">// 每次检测到稳定 CPR_EMA 后，工作固件计算：</span><br>
+CPR_pct   = cpr_ema_x10000 / 100.0f;   <span class="comment">// CPR × 10000 → CPR%</span><br>
+<span class="hi">load_kg</span>  = (k_x100 / 100.0f) × CPR_pct + b_kg;  <span class="comment">// 载荷估算值</span><br>
+<br>
+<span class="comment">// 温度补偿（可选，轮胎橡胶热膨胀影响 CPR 约 0.04%/°C）：</span><br>
+cpr_corr = cpr_ema_x10000 - LC_TEMP_COEFF_KT × (T_now - T_ref);<br>
+load_kg  = (k_x100 / 100.0f) × (cpr_corr / 100.0f) + b_kg;
+  </div>
+
+  <h3>NVRAM 存储格式（16 字节）</h3>
+  <table class="nvram-table">
+    <thead><tr><th>偏移</th><th>字节数</th><th>字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>BASE+0</td><td>4</td><td>k_load_x100</td><td>斜率×100（int32，大端）</td></tr>
+      <tr><td>BASE+4</td><td>4</td><td>fz_offset_kg</td><td>截距 b（int32，大端）</td></tr>
+      <tr><td>BASE+8</td><td>4</td><td>cpr_ema_x10000</td><td>标定时 CPR EMA（快速启动用）</td></tr>
+      <tr><td>BASE+12</td><td>2</td><td>a_patch_ema</td><td>信号幅度均值（初始化检测阈值用）</td></tr>
+      <tr><td>BASE+14</td><td>1</td><td>wheel_id</td><td>车轮编号（0=FL…3=RR）</td></tr>
+      <tr><td>BASE+15</td><td>1</td><td>valid_magic</td><td>0xA5 = 有效标志（最后写，原子性保证）</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ========================================================
+  6. 标定流程总览
+========================================================= -->
+<div class="section">
+  <h2>⑥ 完整标定流程（双无线通信架构）</h2>
+
+  <div class="canvas-wrap" style="background: #0e1a2a; padding: 20px 28px;">
+    <svg viewBox="0 0 760 310" width="100%" style="display:block">
+      <!-- PC box -->
+      <rect x="10" y="20" width="220" height="270" rx="10" fill="#1a2e48" stroke="#3a6aaa" stroke-width="1.5"/>
+      <text x="120" y="46" text-anchor="middle" fill="#6aaee8" font-size="13" font-weight="bold">上位机 (calib_tool.py)</text>
+
+      <rect x="22" y="58" width="196" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="120" y="76" text-anchor="middle" fill="#8ab8e0" font-size="11">① 接收 RF 0xCB 帧（433MHz）</text>
+
+      <rect x="22" y="92" width="196" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="120" y="110" text-anchor="middle" fill="#8ab8e0" font-size="11">② 实时显示 CPR_EMA + 稳定标志</text>
+
+      <rect x="22" y="126" width="196" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="120" y="144" text-anchor="middle" fill="#8ab8e0" font-size="11">③ 操作员记录两个稳定 CPR 点</text>
+
+      <rect x="22" y="160" width="196" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="120" y="178" text-anchor="middle" fill="#8ab8e0" font-size="11">④ 计算 k = ΔF/ΔCPR, b = F₁ - k·CPR₁</text>
+
+      <rect x="22" y="194" width="196" height="26" rx="4" fill="#132038" stroke="#2a7050"/>
+      <text x="120" y="212" text-anchor="middle" fill="#7ae8a0" font-size="11">⑤ 发 LF WRITE_K（k_x100）</text>
+
+      <rect x="22" y="228" width="196" height="26" rx="4" fill="#132038" stroke="#2a7050"/>
+      <text x="120" y="246" text-anchor="middle" fill="#7ae8a0" font-size="11">⑥ 发 LF WRITE_B（b_kg）</text>
+
+      <rect x="22" y="262" width="196" height="26" rx="4" fill="#132038" stroke="#2a7050"/>
+      <text x="120" y="280" text-anchor="middle" fill="#7ae8a0" font-size="11">⑦ 发 LF COMMIT → 等待 0xCC</text>
+
+      <!-- Sensor box -->
+      <rect x="540" y="20" width="210" height="270" rx="10" fill="#1a2e48" stroke="#3a6aaa" stroke-width="1.5"/>
+      <text x="645" y="46" text-anchor="middle" fill="#6aaee8" font-size="13" font-weight="bold">传感器（轮胎内）</text>
+
+      <rect x="552" y="58" width="186" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="645" y="76" text-anchor="middle" fill="#8ab8e0" font-size="11">每 1s 检测 CPR</text>
+
+      <rect x="552" y="92" width="186" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="645" y="110" text-anchor="middle" fill="#8ab8e0" font-size="11">EMA 平滑 → 稳定判断</text>
+
+      <rect x="552" y="126" width="186" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="645" y="144" text-anchor="middle" fill="#f0a020" font-size="11">发 RF 0xCB（CPR_EMA, is_stable）</text>
+
+      <rect x="552" y="160" width="186" height="26" rx="4" fill="#0d2040" stroke="#2a5080"/>
+      <text x="645" y="178" text-anchor="middle" fill="#8ab8e0" font-size="11">DeepSleep（保持 LF 监听）</text>
+
+      <rect x="552" y="194" width="186" height="26" rx="4" fill="#132038" stroke="#2a7050"/>
+      <text x="645" y="212" text-anchor="middle" fill="#7ae8a0" font-size="11">LF 中断：解析命令</text>
+
+      <rect x="552" y="228" width="186" height="26" rx="4" fill="#132038" stroke="#2a7050"/>
+      <text x="645" y="246" text-anchor="middle" fill="#7ae8a0" font-size="11">暂存 k/b → COMMIT → 写 NVRAM</text>
+
+      <rect x="552" y="262" width="186" height="26" rx="4" fill="#132038" stroke="#2a7050"/>
+      <text x="645" y="280" text-anchor="middle" fill="#7ae8a0" font-size="11">发 RF 0xCC 确认帧</text>
+
+      <!-- RF arrow (up) -->
+      <line x1="380" y1="136" x2="540" y2="136" stroke="#f0a020" stroke-width="2" marker-end="url(#arrowL)"/>
+      <line x1="240" y1="136" x2="380" y2="136" stroke="#f0a020" stroke-width="2" marker-start="url(#arrowR)"/>
+      <text x="390" y="126" text-anchor="middle" fill="#f0a020" font-size="12" font-weight="bold">RF 433 MHz ↑</text>
+      <text x="390" y="152" text-anchor="middle" fill="#f0c060" font-size="11">0xCB 每秒广播</text>
+
+      <!-- LF arrow (down) -->
+      <line x1="240" y1="218" x2="380" y2="218" stroke="#60c860" stroke-width="2" marker-end="url(#arrowGL)"/>
+      <line x1="380" y1="218" x2="540" y2="218" stroke="#60c860" stroke-width="2" marker-start="url(#arrowGR)"/>
+      <text x="390" y="208" text-anchor="middle" fill="#60c860" font-size="12" font-weight="bold">LF 125 kHz ↓</text>
+      <text x="390" y="234" text-anchor="middle" fill="#90d890" font-size="11">WRITE_K / WRITE_B / COMMIT</text>
+
+      <defs>
+        <marker id="arrowL" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#f0a020"/>
+        </marker>
+        <marker id="arrowR" markerWidth="8" markerHeight="8" refX="2" refY="3" orient="auto">
+          <path d="M8,0 L8,6 L0,3 z" fill="#f0a020"/>
+        </marker>
+        <marker id="arrowGL" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#60c860"/>
+        </marker>
+        <marker id="arrowGR" markerWidth="8" markerHeight="8" refX="2" refY="3" orient="auto">
+          <path d="M8,0 L8,6 L0,3 z" fill="#60c860"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+</div>
+
+<!-- ========================================================
+  7. 函数参数完整推导
+========================================================= -->
+<div class="section">
+  <h2>⑦ Tms_DetectPatchesZ() 每个参数如何获得</h2>
+  <p>下表是所有 9 个参数的一览，点击标签可切换到每个参数的详细推导：</p>
+
+  <!-- 总览表 -->
+  <div class="param-overview">
+    <table>
+      <thead><tr>
+        <th>参数</th><th>类型 / 典型值</th><th>性质</th><th>一句话说明</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>p_result</strong></td>
+          <td>Tms_Detect_Result_Type[2]</td>
+          <td><span class="badge badge-static">输出缓冲</span></td>
+          <td>由调用方分配，函数将 i_fe/i_re/a_patch 写入此处</td>
+        </tr>
+        <tr>
+          <td><strong>p_last_index</strong></td>
+          <td>uint8_t *（静态变量）</td>
+          <td><span class="badge badge-static">会话状态</span></td>
+          <td>环形缓冲区写指针，函数自己维护，每次重新检测前置 0</td>
+        </tr>
+        <tr>
+          <td><strong>p_data_buffer</strong></td>
+          <td>uint16_t[180]（静态数组）</td>
+          <td><span class="badge badge-static">采样存储</span></td>
+          <td>存放原始 Z 轴加速度采样点，必须是静态/全局变量</td>
+        </tr>
+        <tr>
+          <td><strong>data_buffer_depth</strong></td>
+          <td>uint8_t = 180</td>
+          <td><span class="badge badge-static">固定配置</span></td>
+          <td>缓冲区深度 = 覆盖圈数 × 接地弧点数，由轮胎参数推算</td>
+        </tr>
+        <tr>
+          <td><strong>npatches</strong></td>
+          <td>uint8_t = 2</td>
+          <td><span class="badge badge-static">固定配置</span></td>
+          <td>必须 = 2，要检测两个接触弧才能算出 t_period（一圈时间）</td>
+        </tr>
+        <tr>
+          <td><strong>sampling_period_us</strong></td>
+          <td>uint16_t 93~300 μs</td>
+          <td><span class="badge badge-dynamic">动态计算</span></td>
+          <td>由接地弧长 ÷ 车速 ÷ 目标采样点数推算，首次用默认 300 μs</td>
+        </tr>
+        <tr>
+          <td><strong>f2r_max</strong></td>
+          <td>uint8_t 175~240</td>
+          <td><span class="badge badge-static">固定配置</span></td>
+          <td>接地弧最大持续点数 = 最长接地时间 ÷ 最小采样周期</td>
+        </tr>
+        <tr>
+          <td><strong>detection_threshold</strong></td>
+          <td>int16_t 10~500</td>
+          <td><span class="badge badge-adaptive">自适应</span></td>
+          <td>= a_patch × 0.025（官方推荐范围 70%~90% 的 a_patch/32）</td>
+        </tr>
+        <tr>
+          <td><strong>ntimeout</strong></td>
+          <td>uint16_t 3500~5000</td>
+          <td><span class="badge badge-dynamic">动态计算</span></td>
+          <td>最多等待的采样点数 = 超时时间 ÷ sampling_period_us</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tab 导航 -->
+  <div class="param-tabs" style="margin-top:24px">
+    <div class="param-tab active" onclick="showParam('p_result')">p_result</div>
+    <div class="param-tab" onclick="showParam('p_last_index')">p_last_index</div>
+    <div class="param-tab" onclick="showParam('p_data_buffer')">p_data_buffer</div>
+    <div class="param-tab" onclick="showParam('data_buffer_depth')">data_buffer_depth</div>
+    <div class="param-tab" onclick="showParam('npatches')">npatches</div>
+    <div class="param-tab" onclick="showParam('sampling_period_us')">sampling_period_us ⚙️</div>
+    <div class="param-tab" onclick="showParam('f2r_max')">f2r_max</div>
+    <div class="param-tab" onclick="showParam('detection_threshold')">detection_threshold ⚙️</div>
+    <div class="param-tab" onclick="showParam('ntimeout')">ntimeout</div>
+  </div>
+
+  <!-- ─────────── p_result ─────────── -->
+  <div class="param-panel active" id="panel-p_result">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">p_result<span class="param-type">Tms_Detect_Result_Type *</span></div>
+        <span class="badge badge-static">输出缓冲</span>
+      </div>
+      <div class="param-brief">函数将检测到的接触弧信息写入此数组。调用方负责分配内存，大小必须 ≥ npatches 个元素。</div>
+    </div>
+    <div class="derive-block">
+      <h4>数据结构</h4>
+      <div class="formula-box">
+typedef struct {<br>
+&nbsp;&nbsp;uint16_t <span class="hi">i_fe</span>;    <span class="comment">// falling edge 索引：传感器进入接地区的时刻</span><br>
+&nbsp;&nbsp;uint16_t <span class="hi">i_re</span>;    <span class="comment">// rising edge 索引：传感器离开接地区的时刻</span><br>
+&nbsp;&nbsp;uint16_t a_patch; <span class="comment">// 接触弧幅度（ADC 量纲，越大信号越强）</span><br>
+} Tms_Detect_Result_Type;
+      </div>
+    </div>
+    <div class="derive-block">
+      <h4>如何使用</h4>
+      <div class="formula-box">
+Tms_Detect_Result_Type cp_result[2];  <span class="comment">// 本地数组，npatches=2 所以开 2 个</span><br>
+<br>
+status = Tms_DetectPatchesZ(cp_result, ...);<br>
+<br>
+<span class="comment">// 成功后从结果读取：</span><br>
+uint16_t n_patch  = cp_result[1].i_re - cp_result[1].i_fe;  <span class="comment">// 接触弧采样点数</span><br>
+uint16_t n_period = cp_result[1].i_fe - cp_result[0].i_fe;  <span class="comment">// 一圈采样点数</span><br>
+uint16_t a_patch  = cp_result[1].a_patch;                   <span class="comment">// 用于更新检测阈值</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── p_last_index ─────────── -->
+  <div class="param-panel" id="panel-p_last_index">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">p_last_index<span class="param-type">uint8_t *（静态变量地址）</span></div>
+        <span class="badge badge-static">会话状态</span>
+      </div>
+      <div class="param-brief">环形缓冲区的写指针。函数每次采样后自动递增此值，调用方只需保证它在两次调用之间不被修改。</div>
+    </div>
+    <div class="derive-block">
+      <h4>为什么必须是静态变量？</h4>
+      <p>函数以分步方式工作：每次调用采集若干点，记录写指针位置，下次调用从上次停止的地方继续。如果放在栈上，每次调用都清零，前后两个接触弧就无法关联到同一次检测会话，导致始终拿不到 t_period。</p>
+      <div class="formula-box">
+<span class="comment">// ✅ 正确做法：静态变量，在文件作用域声明</span><br>
+static uint8_t s_last_index;  <span class="comment">// 每次重新开始检测前手动置 0</span><br>
+<br>
+<span class="comment">// 每次新一轮检测前重置：</span><br>
+s_last_index = 0u;<br>
+status = Tms_DetectPatchesZ(result, <span class="hi">&amp;s_last_index</span>, ...);<br>
+<br>
+<span class="comment">// ❌ 错误做法：局部变量（每次调用都清零）</span><br>
+<span class="hi-r">uint8_t last = 0;  // 永远是 0，检测无法累积状态</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── p_data_buffer ─────────── -->
+  <div class="param-panel" id="panel-p_data_buffer">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">p_data_buffer<span class="param-type">uint16_t *（静态数组，深度 = data_buffer_depth）</span></div>
+        <span class="badge badge-static">采样存储</span>
+      </div>
+      <div class="param-brief">函数将 Z 轴加速度的原始采样值（uint16_t ADC 量纲）依次写入此环形缓冲区。调用方负责分配，大小 = data_buffer_depth 个 uint16_t。</div>
+    </div>
+    <div class="derive-block">
+      <h4>内存需求</h4>
+      <div class="formula-box">
+static uint16_t s_data_buffer[180];   <span class="comment">// 180 × 2 = 360 字节</span><br>
+<span class="comment">// MLX91805 的 RAM 较小（约 1 KB），360 字节占比可观，</span><br>
+<span class="comment">// 必须放全局/静态区，不能放栈上（栈通常只有 256~512 字节）</span>
+      </div>
+    </div>
+    <div class="derive-block">
+      <h4>工作原理（环形缓冲区）</h4>
+      <div class="canvas-wrap" style="background:#0e1a2a; padding:14px">
+        <svg viewBox="0 0 580 120" width="100%" style="display:block">
+          <!-- buffer cells -->
+          <g id="buf-cells">
+            <rect x="10"  y="40" width="28" height="40" fill="#1a3050" stroke="#3a6090" stroke-width="1"/>
+            <rect x="40"  y="40" width="28" height="40" fill="#1a3050" stroke="#3a6090" stroke-width="1"/>
+            <rect x="68"  y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="96"  y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="124" y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="152" y="40" width="28" height="40" fill="#c03020" stroke="#e05040" stroke-width="1.5"/>
+            <rect x="180" y="40" width="28" height="40" fill="#c03020" stroke="#e05040" stroke-width="1.5"/>
+            <rect x="208" y="40" width="28" height="40" fill="#c03020" stroke="#e05040" stroke-width="1.5"/>
+            <rect x="236" y="40" width="28" height="40" fill="#c03020" stroke="#e05040" stroke-width="1.5"/>
+            <rect x="264" y="40" width="28" height="40" fill="#c03020" stroke="#e05040" stroke-width="1.5"/>
+            <rect x="292" y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="320" y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="348" y="40" width="28" height="40" fill="#c08020" stroke="#f0a030" stroke-width="1.5"/>
+            <rect x="376" y="40" width="28" height="40" fill="#c08020" stroke="#f0a030" stroke-width="1.5"/>
+            <rect x="404" y="40" width="28" height="40" fill="#c08020" stroke="#f0a030" stroke-width="1.5"/>
+            <rect x="432" y="40" width="28" height="40" fill="#c08020" stroke="#f0a030" stroke-width="1.5"/>
+            <rect x="460" y="40" width="28" height="40" fill="#c08020" stroke="#f0a030" stroke-width="1.5"/>
+            <rect x="488" y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="516" y="40" width="28" height="40" fill="#2a5080" stroke="#5a8acc" stroke-width="1.5"/>
+            <rect x="544" y="40" width="14" height="40" fill="#0e1a2a" stroke="#2a4060" stroke-width="1" stroke-dasharray="3 2"/>
+          </g>
+          <!-- labels -->
+          <text x="24"  y="36" fill="#3a6090" font-size="9" text-anchor="middle">0</text>
+          <text x="54"  y="36" fill="#3a6090" font-size="9" text-anchor="middle">1</text>
+          <text x="82"  y="36" fill="#6a9ad0" font-size="9" text-anchor="middle">2</text>
+          <text x="166" y="36" fill="#e06060" font-size="9" text-anchor="middle">5=i_fe₀</text>
+          <text x="306" y="36" fill="#6a9ad0" font-size="9" text-anchor="middle">10</text>
+          <text x="362" y="36" fill="#e0a040" font-size="9" text-anchor="middle">i_fe₁</text>
+          <text x="502" y="36" fill="#6a9ad0" font-size="9" text-anchor="middle">...</text>
+
+          <!-- legend -->
+          <rect x="10" y="100" width="12" height="12" fill="#2a5080"/>
+          <text x="26" y="111" fill="#8ab8e0" font-size="11">正常采样（离心加速度）</text>
+          <rect x="170" y="100" width="12" height="12" fill="#c03020"/>
+          <text x="186" y="111" fill="#e08070" font-size="11">接触弧 0（信号下凹）</text>
+          <rect x="340" y="100" width="12" height="12" fill="#c08020"/>
+          <text x="356" y="111" fill="#f0c060" font-size="11">接触弧 1（信号下凹）</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── data_buffer_depth ─────────── -->
+  <div class="param-panel" id="panel-data_buffer_depth">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">data_buffer_depth<span class="param-type">uint8_t = 180</span></div>
+        <span class="badge badge-static">固定配置</span>
+      </div>
+      <div class="param-brief">环形缓冲区的深度（采样点数）。必须能容纳"从第一个接触弧前沿到第二个接触弧后沿"的全部采样点。</div>
+    </div>
+    <div class="derive-block">
+      <h4>最小缓冲区深度推导</h4>
+      <div class="formula-box">
+需要容纳的窗口：<br>
+&nbsp;&nbsp;一圈采样点数 n_period + 第二个接触弧的 n_patch<br>
+<br>
+一圈采样点数：<br>
+&nbsp;&nbsp;n_period = t_period / Ts = (2π × r) / (v × Ts)<br>
+<br>
+低速（30 km/h = 8333 mm/s）时最大：<br>
+&nbsp;&nbsp;r = 316 mm，Ts = 300 µs<br>
+&nbsp;&nbsp;t_period = 2π × 316 / 8.333 = 238 ms = 238000 µs<br>
+&nbsp;&nbsp;n_period = 238000 / 300 ≈ <span class="hi-r">793 点</span>   ← 超出 180！<br>
+<br>
+<span class="hi-acc">结论：data_buffer_depth = 180 对应的是高速（&gt;60 km/h）场景。</span><br>
+低速下轮胎一圈超过 180 个点，但库的环形缓冲区处理了回绕，<br>
+只要能在回绕内找到两个下凹，就能正确返回结果。<br>
+<span class="hi-g">实用原则：深度设为 180，与官方示例一致。</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── npatches ─────────── -->
+  <div class="param-panel" id="panel-npatches">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">npatches<span class="param-type">uint8_t = 2</span></div>
+        <span class="badge badge-static">固定配置</span>
+      </div>
+      <div class="param-brief">需要检测的接触弧数量。计算 CPR 必须传 2，这样才能同时得到 t_patch 和 t_period。</div>
+    </div>
+    <div class="derive-block">
+      <h4>为什么必须是 2？</h4>
+      <div class="formula-box">
+<span class="comment">// npatches=1 时：只有 results[0].i_fe / i_re</span><br>
+t_patch  = i_re₀ - i_fe₀;   <span class="comment">// 接触弧时长 ✓</span><br>
+t_period = ???               <span class="comment">// 无法得知一圈时间 ✗</span><br>
+CPR      = ???               <span class="comment">// 无法计算 ✗</span><br>
+<br>
+<span class="comment">// npatches=2 时：有 results[0] 和 results[1]</span><br>
+t_patch  = i_re₁ - i_fe₁;                 <span class="comment">// 第二个弧时长 ✓</span><br>
+t_period = i_fe₁ - i_fe₀;                 <span class="comment">// 两次接地起点之差 = 一圈 ✓</span><br>
+CPR      = t_patch / t_period;             <span class="comment">// 可以计算！✓</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── sampling_period_us ─────────── -->
+  <div class="param-panel" id="panel-sampling_period_us">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">sampling_period_us<span class="param-type">uint16_t，单位 μs，范围 93~16383</span></div>
+        <span class="badge badge-dynamic">动态计算</span>
+      </div>
+      <div class="param-brief">传感器的 Z 轴加速度采样间隔。太长会漏掉接触弧（采样点不够），太短会超出缓冲区（RAM 溢出）。需要根据车速动态计算。</div>
+    </div>
+    <div class="derive-block">
+      <h4>完整推导过程</h4>
+      <div class="formula-box">
+<span class="comment">// 步骤 1：轮胎挠度 δ（mm）</span><br>
+δ ≈ H × 20% = 截面高度 × 0.20<br>
+  = (W × AR / 100) × 0.20<br>
+例（205/60R16）：δ = (205 × 60/100) × 0.20 = 123 × 0.20 = 24.6 mm<br>
+<br>
+<span class="comment">// 步骤 2：接地弧长 L（mm）</span><br>
+L = 2 × √(2Rδ)   <span class="comment">（δ≪R 近似，见 tire_config.c 精确推导）</span><br>
+例：L = 2 × √(2 × 316 × 24.6) = 2 × √15547 ≈ 2 × 124.7 ≈ 249 mm<br>
+<br>
+<span class="comment">// 步骤 3：接地时间 t_patch（μs）</span><br>
+t_patch = L / v = L_mm × 3600 / v_kmh × 1000   <span class="comment">（单位换算）</span><br>
+例（80 km/h）：t_patch = 249 × 3600000 / 80000 ≈ <span class="hi">11.2 ms</span><br>
+<br>
+<span class="comment">// 步骤 4：最优采样周期 Ts（μs）</span><br>
+Ts = t_patch / target_samples<br>
+例（target=30）：Ts = 11200 / 30 ≈ <span class="hi">373 μs</span><br>
+<br>
+<span class="comment">// 步骤 5：硬件限幅</span><br>
+Ts = clamp(Ts, <span class="hi-r">93</span>, 16383)  <span class="comment">（最小 93μs = 硬件最小采样间隔）</span><br>
+<br>
+<span class="comment">// 首次调用（车速未知）：Ts = 300 μs（保守低速默认值）</span><br>
+<span class="comment">// 后续调用：用上次 t_period 反算车速 → 代入上面公式 → 更新 Ts</span>
+      </div>
+    </div>
+    <!-- 交互推算器 -->
+    <div class="param-calc">
+      <h4>⚙️ 采样周期计算器</h4>
+      <div class="param-calc-grid">
+        <div class="input-group">
+          <label>截面宽 W（mm）</label>
+          <input type="number" id="sp_W" value="205" min="150" max="350" oninput="calcSamplingPeriod()">
+        </div>
+        <div class="input-group">
+          <label>扁平比 AR（%）</label>
+          <input type="number" id="sp_AR" value="60" min="25" max="90" oninput="calcSamplingPeriod()">
+        </div>
+        <div class="input-group">
+          <label>轮辋直径（英寸）</label>
+          <input type="number" id="sp_rim" value="16" min="12" max="26" oninput="calcSamplingPeriod()">
+        </div>
+        <div class="input-group">
+          <label>当前车速 v（km/h，0=未知用默认）</label>
+          <input type="number" id="sp_v" value="80" min="0" max="250" oninput="calcSamplingPeriod()">
+        </div>
+        <div class="input-group">
+          <label>挠度 δ 系数（%，典型 18~22）</label>
+          <input type="number" id="sp_delta_pct" value="20" min="10" max="35" oninput="calcSamplingPeriod()">
+        </div>
+        <div class="input-group">
+          <label>目标采样点数（推荐 25~40）</label>
+          <input type="number" id="sp_target" value="30" min="10" max="80" oninput="calcSamplingPeriod()">
+        </div>
+        <div class="param-calc-result">
+          <div class="row"><span>截面高度 H</span><span class="val" id="sp_r_H">—</span></div>
+          <div class="row"><span>动态半径 R_dyn</span><span class="val" id="sp_r_R">—</span></div>
+          <div class="row"><span>挠度 δ</span><span class="val" id="sp_r_delta">—</span></div>
+          <div class="row"><span>接地弧长 L</span><span class="val" id="sp_r_L">—</span></div>
+          <div class="row"><span>接地时间 t_patch</span><span class="val" id="sp_r_tpatch">—</span></div>
+          <div class="row"><span>推荐采样周期 Ts</span><span class="val" id="sp_r_Ts" style="color:var(--green);font-size:1.1rem">—</span></div>
+          <div class="row"><span>硬件限幅后 Ts</span><span class="val" id="sp_r_Ts_clamp" style="color:var(--accent);font-size:1.1rem">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── f2r_max ─────────── -->
+  <div class="param-panel" id="panel-f2r_max">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">f2r_max<span class="param-type">uint8_t，175~240</span></div>
+        <span class="badge badge-static">固定配置</span>
+      </div>
+      <div class="param-brief">"前弧到后弧最大点数比"，即接触弧最多允许持续多少个采样点。超过此值的下凹不认为是有效接触弧（防误检）。名称中 f2r = falling-to-rising。</div>
+    </div>
+    <div class="derive-block">
+      <h4>推导过程</h4>
+      <div class="formula-box">
+<span class="comment">// 接地弧最长持续时间（最低测量速度 v_min，接地弧最长）：</span><br>
+v_min = 20 km/h = 5556 mm/s<br>
+L_max = 接地弧最大长度（宽轮胎约 250 mm）<br>
+t_patch_max = L_max / v_min = 250 / 5.556 mm/µs = 45000 µs<br>
+<br>
+<span class="comment">// 最大采样点数（以低速采样周期 300µs 为例）：</span><br>
+f2r_points = t_patch_max / Ts_low = 45000 / 300 = 150<br>
+<br>
+<span class="comment">// 加 50% 余量（防止实际接地比估算长）：</span><br>
+f2r_max ≈ 150 × 1.5 = 225<br>
+<br>
+<span class="comment">// tire_config.h 根据轮宽分档：</span><br>
+W &lt; 230 mm → f2r_max = <span class="hi">175</span>   <span class="comment">（标准轿车）</span><br>
+230 ≤ W &lt; 260 → f2r_max = <span class="hi">210</span>   <span class="comment">（SUV）</span><br>
+W ≥ 260 mm  → f2r_max = <span class="hi">240</span>   <span class="comment">（大轮胎）</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── detection_threshold ─────────── -->
+  <div class="param-panel" id="panel-detection_threshold">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">detection_threshold<span class="param-type">int16_t，10~500 ADC LSB</span></div>
+        <span class="badge badge-adaptive">自适应</span>
+      </div>
+      <div class="param-brief">接触弧检测的最小信号幅度。Z轴加速度信号的下凹深度超过此阈值，才认为是有效接触弧。阈值太低→噪声误检，太高→漏检。</div>
+    </div>
+    <div class="derive-block">
+      <h4>推导过程（来自官方 TMS 文档推荐范围）</h4>
+      <div class="formula-box">
+<span class="comment">// 官方推荐：threshold 在 a_patch 的 70%~90%/32 范围内</span><br>
+threshold ∈ [0.70 × a_patch/32, 0.90 × a_patch/32]<br>
+<br>
+取中值（0.80）：<br>
+threshold = a_patch × 0.80 / 32<br>
+           = a_patch × 80 / 3200<br>
+           ≈ <span class="hi">a_patch / 40</span><br>
+<br>
+<span class="comment">// 物理含义：</span><br>
+<span class="comment">// a_patch 是接触弧的幅度（离心加速度下凹的深度），单位是 ADC 量纲</span><br>
+<span class="comment">// a_patch 随车速增大而增大（高速离心加速度更大）</span><br>
+<span class="comment">// 设阈值为 a_patch/40，自动跟踪信号强度，实现自动增益控制</span>
+      </div>
+    </div>
+    <div class="derive-block">
+      <h4>自适应更新流程</h4>
+      <div class="formula-box">
+<span class="comment">// 第 1 次：使用保守低阈值（冷启动，a_patch 未知）</span><br>
+threshold_init = 20;   <span class="comment">// ADC LSB，保守低值确保能检测到第一个弧</span><br>
+<br>
+<span class="comment">// 检测成功后：读 a_patch，更新 EMA</span><br>
+a_patch_ema = (a_patch_ema * 3 + new_a_patch) / 4;  <span class="comment">// α=4</span><br>
+<br>
+<span class="comment">// 下次调用时：用 EMA 计算阈值</span><br>
+threshold = max(a_patch_ema / 40, 10);  <span class="comment">// 最小 10，防止 a_patch 极小时阈值为 0</span><br>
+<br>
+<span class="comment">// load_calib.c 中的实现（g_lc_ctx.threshold 即 int32_t 的自适应阈值）：</span><br>
+g_lc_ctx.threshold = (g_lc_ctx.threshold * 3 + a_patch_new) / 4;
+      </div>
+    </div>
+    <!-- 交互推算器 -->
+    <div class="param-calc">
+      <h4>⚙️ 阈值计算器</h4>
+      <div class="param-calc-grid">
+        <div class="input-group">
+          <label>上次检测到的 a_patch（ADC LSB）</label>
+          <input type="number" id="thr_apatch" value="480" min="0" max="4000" oninput="calcThreshold()">
+        </div>
+        <div class="input-group">
+          <label>系数（官方推荐 70%~90% / 32，取 80%）</label>
+          <select id="thr_coef" onchange="calcThreshold()">
+            <option value="0.70">70% / 32（最低，灵敏度最高）</option>
+            <option value="0.80" selected>80% / 32（推荐中值）</option>
+            <option value="0.90">90% / 32（最高，抗噪最强）</option>
+          </select>
+        </div>
+        <div class="param-calc-result">
+          <div class="row"><span>detection_threshold（精确）</span><span class="val" id="thr_r_exact">—</span></div>
+          <div class="row"><span>detection_threshold（int16，固件存储）</span><span class="val" id="thr_r_int" style="color:var(--green);font-size:1.1rem">—</span></div>
+          <div class="row"><span>下凹深度 ≥ 此值才算有效接触弧</span><span class="val" id="thr_r_g">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── ntimeout ─────────── -->
+  <div class="param-panel" id="panel-ntimeout">
+    <div class="param-header">
+      <div>
+        <div class="param-sig">ntimeout<span class="param-type">uint16_t，采样点数（非毫秒！）</span></div>
+        <span class="badge badge-dynamic">动态计算</span>
+      </div>
+      <div class="param-brief">检测超时上限，单位是"采样点数"（不是时间！）。超过此点数仍未找到足够的接触弧，函数返回 DETECT_TIME_OUT。</div>
+    </div>
+    <div class="derive-block">
+      <h4>推导过程</h4>
+      <div class="formula-box">
+<span class="comment">// 单位：ntimeout 点 × sampling_period_us = 实际超时时间</span><br>
+<br>
+目标超时时间（通常希望等 1~2 圈）：<br>
+t_timeout = 2 × t_period_max   <span class="comment">（低速时一圈最长，用最低速估算）</span><br>
+<br>
+低速（30 km/h），R=316 mm：<br>
+t_period_max = 2π × 316 / (30×1000/3600) = 239 ms = 239000 µs<br>
+<br>
+以 Ts = 300 µs：<br>
+ntimeout = 2 × 239000 / 300 ≈ <span class="hi">1593 点</span><br>
+<br>
+load_calib.h 中使用的 3500 / 5000：<br>
+&nbsp;&nbsp;LC_TIMEOUT_LOW_SPEED  = 3500 点  <span class="comment">→ 3500 × 300 µs ≈ 1.05 s</span><br>
+&nbsp;&nbsp;LC_TIMEOUT_HIGH_SPEED = 5000 点  <span class="comment">→ 5000 × 93 µs  ≈ 0.47 s</span><br>
+<br>
+<span class="hi-acc">高速用更多点数是因为采样间隔更短，相同物理时间对应更多采样点。</span>
+      </div>
+    </div>
+    <div class="param-calc">
+      <h4>⚙️ ntimeout 计算器</h4>
+      <div class="param-calc-grid">
+        <div class="input-group">
+          <label>最低测量车速 v_min（km/h）</label>
+          <input type="number" id="to_v" value="30" min="5" max="200" oninput="calcNtimeout()">
+        </div>
+        <div class="input-group">
+          <label>动态半径 R（mm）</label>
+          <input type="number" id="to_r" value="316" min="200" max="500" oninput="calcNtimeout()">
+        </div>
+        <div class="input-group">
+          <label>sampling_period_us（μs）</label>
+          <input type="number" id="to_ts" value="300" min="93" max="2000" oninput="calcNtimeout()">
+        </div>
+        <div class="input-group">
+          <label>等待圈数（推荐 1.5~3）</label>
+          <input type="number" id="to_nc" value="2" min="1" max="5" step="0.5" oninput="calcNtimeout()">
+        </div>
+        <div class="param-calc-result">
+          <div class="row"><span>一圈时间 t_period</span><span class="val" id="to_r_tperiod">—</span></div>
+          <div class="row"><span>超时物理时间 t_timeout</span><span class="val" id="to_r_ttimeout">—</span></div>
+          <div class="row"><span>ntimeout（采样点数）</span><span class="val" id="to_r_ntimeout" style="color:var(--green);font-size:1.1rem">—</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+  7. 交互计算器 - CPR
+========================================================= -->
+<div class="section">
+  <h2>⑧ 交互计算器 A：从检测结果计算 CPR</h2>
+  <p>输入 Tms_DetectPatchesZ() 返回的索引值，计算 CPR：</p>
+  <div class="calc-grid">
+    <div class="input-group">
+      <label>i_fe₀（第1个接触弧前沿索引）</label>
+      <input type="number" id="i_fe0" value="12" min="0" max="179">
+    </div>
+    <div class="input-group">
+      <label>i_re₀（第1个接触弧后沿索引）</label>
+      <input type="number" id="i_re0" value="35" min="0" max="179">
+    </div>
+    <div class="input-group">
+      <label>i_fe₁（第2个接触弧前沿索引）</label>
+      <input type="number" id="i_fe1" value="154" min="0" max="179">
+    </div>
+    <div class="input-group">
+      <label>i_re₁（第2个接触弧后沿索引）</label>
+      <input type="number" id="i_re1" value="177" min="0" max="179">
+    </div>
+    <div class="input-group">
+      <label>sampling_period_us（采样间隔，μs）</label>
+      <input type="number" id="speriod" value="300" min="50" max="1000">
+    </div>
+    <div class="input-group">
+      <label>轮胎动态半径（mm）</label>
+      <input type="number" id="r_mm" value="320" min="200" max="500">
+    </div>
+    <button class="calc-btn" onclick="calcCPR()">计算 CPR 和车速</button>
+    <div class="result-panel" id="cpr-result">
+      <div class="result-row">
+        <span class="result-label">n_patch（接触弧采样点数）</span>
+        <span class="result-value" id="r_npatch">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">n_period（一圈采样点数）</span>
+        <span class="result-value" id="r_nperiod">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">t_patch（接触弧时长）</span>
+        <span class="result-value" id="r_tpatch">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">t_period（一圈时长）</span>
+        <span class="result-value" id="r_tperiod">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">CPR（%）</span>
+        <span class="result-value big" id="r_cpr">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">CPR × 10000（固件存储值）</span>
+        <span class="result-value" id="r_cpr_x10000">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">估算车速</span>
+        <span class="result-value" id="r_speed">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+  8. 交互计算器 - 标定
+========================================================= -->
+<div class="section">
+  <h2>⑨ 交互计算器 B：两点标定求 k 和 b</h2>
+  <p>在两种已知载荷下分别测得稳定 CPR，计算标定系数 k 和 b：</p>
+  <div class="calib-section">
+    <div class="calib-points">
+      <div class="calib-point">
+        <h4>标定点 1（例：空载）</h4>
+        <div class="input-group" style="margin-bottom:10px">
+          <label>已知载荷 F₁（kg）</label>
+          <input type="number" id="F1" value="350" step="1">
+        </div>
+        <div class="input-group">
+          <label>测量 CPR₁（%）</label>
+          <input type="number" id="CPR1" value="7.20" step="0.01">
+        </div>
+      </div>
+      <div class="calib-point">
+        <h4>标定点 2（例：满载）</h4>
+        <div class="input-group" style="margin-bottom:10px">
+          <label>已知载荷 F₂（kg）</label>
+          <input type="number" id="F2" value="550" step="1">
+        </div>
+        <div class="input-group">
+          <label>测量 CPR₂（%）</label>
+          <input type="number" id="CPR2" value="8.85" step="0.01">
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <button class="calc-btn" onclick="calcCalib()">计算标定系数 k / b</button>
+    </div>
+    <div class="calib-result" id="calib-result" style="display:none">
+      <div class="kb" id="r_kb_k">k = —</div>
+      <div class="kb" id="r_kb_b">b = —</div>
+      <div class="kb" id="r_kb_k100">k_x100 (固件整数) = —</div>
+      <hr style="border-color:#f5c97e; margin: 10px 0">
+      <div style="font-size:.9rem; color:#7a6030; margin-bottom: 8px;">载荷估算验证：</div>
+      <div id="r_kb_verify" style="font-size:.92rem; color:#5a4020; line-height: 2;"></div>
+    </div>
+
+    <div id="calib-live" style="margin-top:20px; display:none">
+      <h3 style="margin-bottom:12px">实时载荷估算</h3>
+      <div class="calc-grid">
+        <div class="input-group">
+          <label>当前 CPR_EMA（%）</label>
+          <input type="number" id="cpr_now" value="8.10" step="0.01" oninput="calcLoad()">
+        </div>
+        <div class="input-group">
+          <label>当前温度（°C，可选补偿）</label>
+          <input type="number" id="temp_now" value="25" step="1" oninput="calcLoad()">
+        </div>
+        <div class="result-panel" style="grid-column:1/-1; padding:14px 20px;">
+          <div class="result-row">
+            <span class="result-label">未补偿载荷估算</span>
+            <span class="result-value big" id="r_load_raw">—</span>
+          </div>
+          <div class="result-row">
+            <span class="result-label">温度补偿后载荷（参考温度 25°C，系数 0.04%/°C）</span>
+            <span class="result-value big" id="r_load_comp">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+/* ── 轮胎动画 ── */
+let animFrame = null;
+let angle = 0;
+document.getElementById('anim-tire').addEventListener('click', function() {
+  if (animFrame) {
+    cancelAnimationFrame(animFrame);
+    animFrame = null;
+    return;
+  }
+  function tick() {
+    angle += 2;
+    const rad = angle * Math.PI / 180;
+    const cx = 200, cy = 130, r = 90;
+    const sx = cx + r * Math.sin(rad);
+    const sy = cy - r * Math.cos(rad);
+    const dot = document.getElementById('sensor-dot');
+    const lbl = document.getElementById('sensor-label');
+    if (dot) { dot.setAttribute('cx', sx); dot.setAttribute('cy', sy); }
+    if (lbl) { lbl.setAttribute('x', sx + 8); lbl.setAttribute('y', sy + 4); }
+    animFrame = requestAnimationFrame(tick);
+  }
+  tick();
+});
+
+/* ── CPR 计算器 ── */
+function calcCPR() {
+  const ife0 = parseInt(document.getElementById('i_fe0').value) || 0;
+  const ire0 = parseInt(document.getElementById('i_re0').value) || 0;
+  const ife1 = parseInt(document.getElementById('i_fe1').value) || 0;
+  const ire1 = parseInt(document.getElementById('i_re1').value) || 0;
+  const sp   = parseInt(document.getElementById('speriod').value) || 300;
+  const r_mm = parseInt(document.getElementById('r_mm').value) || 320;
+
+  // uint16 wrapping arithmetic
+  const n_patch  = (ire1 - ife1 + 65536) & 0xFFFF;
+  const n_period = (ife1 - ife0 + 65536) & 0xFFFF;
+
+  if (n_period === 0) { alert('n_period 为 0，请检查输入'); return; }
+
+  const t_patch_us  = n_patch  * sp;
+  const t_period_us = n_period * sp;
+  const cpr         = n_patch / n_period;
+  const cpr_pct     = cpr * 100;
+  const cpr_x10000  = Math.round(cpr * 10000);
+
+  // speed: v = 2πR / t_period
+  const t_period_s = t_period_us * 1e-6;
+  const v_ms       = 2 * Math.PI * r_mm * 1e-3 / t_period_s;
+  const v_kmh      = v_ms * 3.6;
+
+  document.getElementById('r_npatch').textContent   = n_patch + ' 点';
+  document.getElementById('r_nperiod').textContent  = n_period + ' 点';
+  document.getElementById('r_tpatch').textContent   = t_patch_us.toFixed(0) + ' μs = ' + (t_patch_us/1000).toFixed(2) + ' ms';
+  document.getElementById('r_tperiod').textContent  = t_period_us.toFixed(0) + ' μs = ' + (t_period_us/1000).toFixed(1) + ' ms';
+  document.getElementById('r_cpr').textContent      = cpr_pct.toFixed(3) + ' %';
+  document.getElementById('r_cpr_x10000').textContent = cpr_x10000;
+  document.getElementById('r_speed').textContent    = v_kmh.toFixed(1) + ' km/h';
+}
+calcCPR();
+
+/* ── 标定计算器 ── */
+let g_k = null, g_b = null;
+function calcCalib() {
+  const F1   = parseFloat(document.getElementById('F1').value);
+  const F2   = parseFloat(document.getElementById('F2').value);
+  const CPR1 = parseFloat(document.getElementById('CPR1').value);
+  const CPR2 = parseFloat(document.getElementById('CPR2').value);
+
+  if (Math.abs(CPR2 - CPR1) < 1e-6) { alert('两个 CPR 值不能相同'); return; }
+
+  g_k = (F2 - F1) / (CPR2 - CPR1);
+  g_b = F1 - g_k * CPR1;
+  const k_x100 = Math.round(g_k * 100);
+
+  document.getElementById('r_kb_k').textContent    = 'k = ' + g_k.toFixed(3) + '  (kg/%)';
+  document.getElementById('r_kb_b').textContent    = 'b = ' + g_b.toFixed(2) + '  (kg)';
+  document.getElementById('r_kb_k100').textContent = 'k_x100 = ' + k_x100 + '  →  写入 LF CMD_WRITE_K';
+
+  const v1 = g_k * CPR1 + g_b;
+  const v2 = g_k * CPR2 + g_b;
+  document.getElementById('r_kb_verify').innerHTML =
+    'CPR₁ = ' + CPR1 + '% → 估算 F = ' + v1.toFixed(1) + ' kg（实际 ' + F1 + ' kg，误差 ' + Math.abs(v1-F1).toFixed(1) + ' kg）<br>' +
+    'CPR₂ = ' + CPR2 + '% → 估算 F = ' + v2.toFixed(1) + ' kg（实际 ' + F2 + ' kg，误差 ' + Math.abs(v2-F2).toFixed(1) + ' kg）';
+
+  document.getElementById('calib-result').style.display = 'block';
+  document.getElementById('calib-live').style.display = 'block';
+  calcLoad();
+}
+
+function calcLoad() {
+  if (g_k === null) return;
+  const cpr_now  = parseFloat(document.getElementById('cpr_now').value) || 0;
+  const temp_now = parseFloat(document.getElementById('temp_now').value) || 25;
+
+  const load_raw  = g_k * cpr_now + g_b;
+
+  // temperature compensation: each 1°C shifts CPR by 0.04% = 0.0004 absolute
+  const KT = 0.04; // %/°C
+  const cpr_corr = cpr_now - KT * (temp_now - 25);
+  const load_comp = g_k * cpr_corr + g_b;
+
+  document.getElementById('r_load_raw').textContent  = load_raw.toFixed(1) + ' kg';
+  document.getElementById('r_load_comp').textContent = load_comp.toFixed(1) + ' kg';
+}
+/* ── 参数 Tab 切换 ── */
+function showParam(name) {
+  document.querySelectorAll('.param-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.param-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  document.querySelectorAll('.param-tab').forEach(t => {
+    if (t.getAttribute('onclick') === "showParam('" + name + "')") t.classList.add('active');
+  });
+}
+
+/* ── 整数平方根（与 tire_config.c 一致）── */
+function isqrt(x) {
+  if (x <= 0) return 0;
+  let q = x;
+  for (let i = 0; i < 20; i++) {
+    const r = Math.floor((q + Math.floor(x / q)) / 2);
+    if (r >= q) break;
+    q = r;
+  }
+  return q;
+}
+
+/* ── 采样周期计算器 ── */
+function calcSamplingPeriod() {
+  const W    = parseFloat(document.getElementById('sp_W').value) || 205;
+  const AR   = parseFloat(document.getElementById('sp_AR').value) || 60;
+  const rim  = parseFloat(document.getElementById('sp_rim').value) || 16;
+  const v    = parseFloat(document.getElementById('sp_v').value) || 0;
+  const dp   = parseFloat(document.getElementById('sp_delta_pct').value) || 20;
+  const tgt  = parseInt(document.getElementById('sp_target').value) || 30;
+
+  const H     = W * AR / 100;          // 截面高度 mm
+  const r_static = rim * 25.4 / 2 + H; // 静态半径 mm
+  const R    = r_static * 0.97;         // 动态半径 mm
+  const delta = H * dp / 100;           // 挠度 mm
+  const L    = 2 * Math.sqrt(2 * R * delta);  // 接地弧长 mm
+
+  let Ts_raw = 300, t_patch_ms = null;
+  if (v > 0) {
+    const t_patch_us = L * 3600000 / (v * 1000); // μs
+    t_patch_ms = t_patch_us / 1000;
+    Ts_raw = t_patch_us / tgt;
+  }
+  const Ts_clamp = Math.max(93, Math.min(16383, Math.round(Ts_raw)));
+
+  document.getElementById('sp_r_H').textContent     = H.toFixed(1) + ' mm';
+  document.getElementById('sp_r_R').textContent     = R.toFixed(1) + ' mm';
+  document.getElementById('sp_r_delta').textContent = delta.toFixed(1) + ' mm';
+  document.getElementById('sp_r_L').textContent     = L.toFixed(1) + ' mm';
+  document.getElementById('sp_r_tpatch').textContent = t_patch_ms !== null ? t_patch_ms.toFixed(2) + ' ms' : '（v=0，使用默认值）';
+  document.getElementById('sp_r_Ts').textContent    = v > 0 ? Ts_raw.toFixed(1) + ' μs' : '— （v=0）';
+  document.getElementById('sp_r_Ts_clamp').textContent = Ts_clamp + ' μs';
+}
+calcSamplingPeriod();
+
+/* ── 阈值计算器 ── */
+function calcThreshold() {
+  const ap   = parseFloat(document.getElementById('thr_apatch').value) || 0;
+  const coef = parseFloat(document.getElementById('thr_coef').value) || 0.8;
+  const exact = ap * coef / 32;
+  const intVal = Math.max(10, Math.round(exact));
+  const gVal  = (exact * 9.81 / 4096 * 10).toFixed(2); // rough ADC→g hint
+
+  document.getElementById('thr_r_exact').textContent = exact.toFixed(2) + ' LSB';
+  document.getElementById('thr_r_int').textContent   = intVal + ' LSB';
+  document.getElementById('thr_r_g').textContent     = '≈ ' + (intVal / 4096 * 9.81).toFixed(3) + ' g（估算，ADC满量程=9.81g）';
+}
+calcThreshold();
+
+/* ── ntimeout 计算器 ── */
+function calcNtimeout() {
+  const v_min = parseFloat(document.getElementById('to_v').value) || 30;
+  const R     = parseFloat(document.getElementById('to_r').value) || 316;
+  const Ts    = parseFloat(document.getElementById('to_ts').value) || 300;
+  const nc    = parseFloat(document.getElementById('to_nc').value) || 2;
+
+  const v_mms   = v_min * 1000 / 3.6;     // mm/s
+  const t_period = 2 * Math.PI * R / v_mms * 1e6; // μs
+  const t_timeout = nc * t_period;
+  const ntimeout = Math.round(t_timeout / Ts);
+
+  document.getElementById('to_r_tperiod').textContent  = (t_period/1000).toFixed(1) + ' ms = ' + t_period.toFixed(0) + ' μs';
+  document.getElementById('to_r_ttimeout').textContent = (t_timeout/1000).toFixed(0) + ' ms';
+  document.getElementById('to_r_ntimeout').textContent = ntimeout + ' 点';
+}
+calcNtimeout();
+
+</script>
+</body>
+</html>
